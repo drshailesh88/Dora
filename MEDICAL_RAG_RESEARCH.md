@@ -362,5 +362,52 @@ Curated list of GraphRAG papers, benchmarks, and projects
 
 ---
 
-*Research compiled: January 2025*
-*For: Medical RAG ChatGPT-like System for Doctors*
+## 🎤 Voice Technology for Medical AI
+
+### Chatterbox TTS ⭐ RECOMMENDED
+**Repository:** https://github.com/resemble-ai/chatterbox
+
+**Why it stands out:**
+- **Beats ElevenLabs** in blind A/B tests (63.75% preference)
+- Zero-shot voice cloning from single audio clip
+- <200ms latency - suitable for real-time "Hey DocAssist"
+- Paralinguistic tags: `[laugh]`, `[cough]` for natural speech
+- **MIT License** - fully commercial-friendly
+- 23 languages including Hindi
+
+**Models:**
+| Model | Parameters | Best For |
+|-------|------------|----------|
+| Chatterbox-Turbo | 350M | Real-time voice agents |
+| Chatterbox-Multilingual | 500M | Multi-language support |
+
+**vs Piper TTS:**
+- Chatterbox: Better quality, needs GPU
+- Piper: Runs on Raspberry Pi, good for edge/rural
+
+### Speech Recognition (STT)
+- **Whisper** (OpenAI): Best accuracy, medical terminology
+- **Faster-Whisper**: 4x faster inference
+- **Whisper.cpp**: Runs on CPU, good for offline
+
+---
+
+## 📱 LLM Application Patterns
+
+**Repository:** https://github.com/Shubhamsaboo/awesome-llm-apps
+
+**Most relevant patterns for Dora:**
+
+| Pattern | Relevance | Why |
+|---------|-----------|-----|
+| **Corrective RAG (CRAG)** | ⭐⭐⭐⭐⭐ | Catches hallucinations before doctor sees them |
+| **Agentic RAG with Reasoning** | ⭐⭐⭐⭐⭐ | Multi-step diagnostic workflows |
+| **Hybrid Search RAG** | ⭐⭐⭐⭐ | Dense + sparse for medical accuracy |
+| **Local RAG Agent** | ⭐⭐⭐⭐ | Offline capability (Llama, Deepseek) |
+| **Voice RAG Agent** | ⭐⭐⭐⭐ | "Hey DocAssist" integration |
+| **Vision RAG** | ⭐⭐⭐ | Medical imaging (X-rays, scans) |
+
+---
+
+*Research compiled: January 2026*
+*For: DocAssist Dora - Medical Knowledge Platform*
