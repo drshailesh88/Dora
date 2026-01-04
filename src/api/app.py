@@ -46,6 +46,14 @@ try:
     from src.api.format import router as format_router
 except ImportError:
     format_router = None
+try:
+    from src.api.emr import router as emr_router
+except ImportError:
+    emr_router = None
+try:
+    from src.api.education import router as education_router
+except ImportError:
+    education_router = None
 
 
 # Global pipeline instances
@@ -116,6 +124,10 @@ if learning_router:
     app.include_router(learning_router)
 if format_router:
     app.include_router(format_router)
+if emr_router:
+    app.include_router(emr_router)
+if education_router:
+    app.include_router(education_router)
 
 
 # Request/Response models
