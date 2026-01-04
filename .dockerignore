@@ -1,0 +1,98 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation
+*.md
+docs/
+LICENSE
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Data and caches
+data/
+*.db
+*.sqlite
+*.sqlite3
+logs/
+*.log
+
+# Vector databases (should be volume-mounted)
+data/qdrant/
+data/chromadb/
+
+# Model caches (download at runtime)
+models/
+.cache/
+*.bin
+*.safetensors
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Spec-kit (not needed in container)
+.specify/
+
+# Mobile (separate deployment)
+mobile/
+
+# Tests (use separate test image if needed)
+tests/
+test_*.py
+*_test.py

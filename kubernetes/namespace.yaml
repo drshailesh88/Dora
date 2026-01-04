@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dora
+  labels:
+    name: dora
+    app: medical-knowledge-platform

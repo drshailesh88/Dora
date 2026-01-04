@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dora-data-pvc
+  namespace: dora
+  labels:
+    app: dora
+spec:
+  accessModes:
+  - ReadWriteMany  # Multiple pods can read/write
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard  # Change to your storage class
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dora-redis-pvc
+  namespace: dora
+  labels:
+    app: dora
+    component: redis
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: standard

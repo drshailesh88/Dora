@@ -1,0 +1,77 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # System logs
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*.log
+
+  # Dora application logs
+  - job_name: dora-api
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: dora-api
+          component: api
+          __path__: /app/logs/*.log
+
+    pipeline_stages:
+      # Parse JSON logs
+      - json:
+          expressions:
+            timestamp: timestamp
+            level: level
+            message: message
+            logger: logger
+
+      # Extract level
+      - labels:
+          level:
+          logger:
+
+      # Parse timestamp
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+
+  # Docker container logs
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)$'
+        target_label: 'container'
+
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+
+    pipeline_stages:
+      # Parse common log formats
+      - regex:
+          expression: '^(?P<timestamp>\S+) (?P<level>\S+) (?P<message>.*)$'
+
+      - labels:
+          level:
+
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano

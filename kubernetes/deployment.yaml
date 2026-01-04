@@ -1,0 +1,333 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dora-api
+  namespace: dora
+  labels:
+    app: dora
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: dora
+      component: api
+  template:
+    metadata:
+      labels:
+        app: dora
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: api
+        image: dora-api:latest
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        env:
+        # ConfigMap
+        - name: API_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: API_HOST
+        - name: API_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: API_PORT
+        - name: DEBUG
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: DEBUG
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: LOG_LEVEL
+        - name: QDRANT_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: QDRANT_HOST
+        - name: QDRANT_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: QDRANT_PORT
+        - name: NEO4J_URI
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: NEO4J_URI
+        - name: REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: REDIS_URL
+        - name: EMBEDDING_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: dora-config
+              key: EMBEDDING_MODEL
+
+        # Secrets
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: SECRET_KEY
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: OPENAI_API_KEY
+              optional: true
+        - name: ANTHROPIC_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: ANTHROPIC_API_KEY
+              optional: true
+        - name: COHERE_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: COHERE_API_KEY
+              optional: true
+        - name: NEO4J_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: NEO4J_PASSWORD
+        - name: RAZORPAY_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: RAZORPAY_KEY_ID
+              optional: true
+        - name: RAZORPAY_KEY_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: RAZORPAY_KEY_SECRET
+              optional: true
+
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: dora-data-pvc
+      - name: logs
+        emptyDir: {}
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dora-qdrant
+  namespace: dora
+  labels:
+    app: dora
+    component: qdrant
+spec:
+  serviceName: dora-qdrant
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dora
+      component: qdrant
+  template:
+    metadata:
+      labels:
+        app: dora
+        component: qdrant
+    spec:
+      containers:
+      - name: qdrant
+        image: qdrant/qdrant:v1.7.4
+        ports:
+        - name: http
+          containerPort: 6333
+        - name: grpc
+          containerPort: 6334
+        env:
+        - name: QDRANT__SERVICE__GRPC_PORT
+          value: "6334"
+        - name: QDRANT__LOG_LEVEL
+          value: "INFO"
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: qdrant-data
+          mountPath: /qdrant/storage
+  volumeClaimTemplates:
+  - metadata:
+      name: qdrant-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: dora-neo4j
+  namespace: dora
+  labels:
+    app: dora
+    component: neo4j
+spec:
+  serviceName: dora-neo4j
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dora
+      component: neo4j
+  template:
+    metadata:
+      labels:
+        app: dora
+        component: neo4j
+    spec:
+      containers:
+      - name: neo4j
+        image: neo4j:5-community
+        ports:
+        - name: http
+          containerPort: 7474
+        - name: bolt
+          containerPort: 7687
+        env:
+        - name: NEO4J_AUTH
+          valueFrom:
+            secretKeyRef:
+              name: dora-secrets
+              key: NEO4J_PASSWORD
+        - name: NEO4J_dbms_memory_heap_max__size
+          value: "2G"
+        - name: NEO4J_dbms_memory_pagecache_size
+          value: "1G"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "500m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+        volumeMounts:
+        - name: neo4j-data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: neo4j-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 10Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dora-redis
+  namespace: dora
+  labels:
+    app: dora
+    component: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dora
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: dora
+        component: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - name: redis
+          containerPort: 6379
+        args:
+        - redis-server
+        - --appendonly
+        - "yes"
+        - --maxmemory
+        - "1gb"
+        - --maxmemory-policy
+        - allkeys-lru
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: dora-redis-pvc

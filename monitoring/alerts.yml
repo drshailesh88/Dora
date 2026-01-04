@@ -1,0 +1,149 @@
+groups:
+  # API Health Alerts
+  - name: api_health
+    interval: 30s
+    rules:
+      - alert: APIDown
+        expr: up{job="dora-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Dora API is down"
+          description: "Dora API has been down for more than 2 minutes."
+
+      - alert: APIHighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "High error rate detected"
+          description: "API error rate is {{ $value | humanizePercentage }} over the last 5 minutes."
+
+      - alert: APISlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 2
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "API response time is slow"
+          description: "95th percentile response time is {{ $value }}s."
+
+  # Resource Alerts
+  - name: resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes."
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 90% for more than 5 minutes."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+          component: system
+        annotations:
+          summary: "Low disk space"
+          description: "Disk space is below 10%."
+
+  # Database Alerts
+  - name: databases
+    interval: 30s
+    rules:
+      - alert: QdrantDown
+        expr: up{job="qdrant"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: qdrant
+        annotations:
+          summary: "Qdrant is down"
+          description: "Qdrant vector database has been down for more than 2 minutes."
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache has been down for more than 2 minutes."
+
+  # Application-specific Alerts
+  - name: application
+    interval: 30s
+    rules:
+      - alert: HighQueryLatency
+        expr: histogram_quantile(0.95, rate(medical_query_duration_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          component: rag
+        annotations:
+          summary: "Medical query latency is high"
+          description: "95th percentile query latency is {{ $value }}s."
+
+      - alert: LowRetrievalAccuracy
+        expr: medical_retrieval_accuracy < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          component: rag
+        annotations:
+          summary: "Retrieval accuracy is low"
+          description: "Retrieval accuracy has dropped to {{ $value | humanizePercentage }}."
+
+      - alert: HighLLMCost
+        expr: increase(llm_api_cost_total[1h]) > 100
+        for: 1h
+        labels:
+          severity: info
+          component: llm
+        annotations:
+          summary: "High LLM API costs"
+          description: "LLM API costs exceeded $100 in the last hour."
+
+  # License Alerts
+  - name: licensing
+    interval: 1h
+    rules:
+      - alert: LicenseExpiringSoon
+        expr: (license_expiry_timestamp - time()) < 604800
+        labels:
+          severity: warning
+          component: licensing
+        annotations:
+          summary: "License expiring soon"
+          description: "License expires in less than 7 days."
+
+      - alert: HighFailedActivations
+        expr: rate(license_activation_failed_total[1h]) > 0.5
+        for: 1h
+        labels:
+          severity: warning
+          component: licensing
+        annotations:
+          summary: "High license activation failures"
+          description: "License activation failure rate is {{ $value }}."
