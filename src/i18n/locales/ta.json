@@ -1,0 +1,54 @@
+{
+  "_comment": "Tamil (தமிழ்) translations - Structure file with sample translations",
+  "app": {
+    "name": "டோரா",
+    "tagline": "உங்கள் நம்பகமான மருத்துவ அறிவு உதவியாளர்",
+    "description": "மருத்துவர்களுக்கான AI-இயக்கப்படும் மருத்துவ அறிவு தளம்"
+  },
+  "nav": {
+    "home": "முகப்பு",
+    "search": "தேடு",
+    "library": "நூலகம்",
+    "favorites": "பிடித்தவை",
+    "history": "வரலாறு",
+    "settings": "அமைப்புகள்",
+    "profile": "சுயவிவரம்",
+    "help": "உதவி",
+    "about": "பற்றி",
+    "logout": "வெளியேறு",
+    "dashboard": "முகப்புப் பலகை",
+    "patients": "நோயாளிகள்",
+    "knowledge_base": "அறிவுத் தளம்",
+    "clinical_tools": "மருத்துவக் கருவிகள்"
+  },
+  "buttons": {
+    "submit": "சமர்ப்பிக்கவும்",
+    "cancel": "ரத்துசெய்",
+    "save": "சேமி",
+    "delete": "நீக்கு",
+    "edit": "திருத்து",
+    "back": "பின்",
+    "next": "அடுத்து",
+    "confirm": "உறுதிப்படுத்து",
+    "close": "மூடு",
+    "ok": "சரி",
+    "yes": "ஆம்",
+    "no": "இல்லை"
+  },
+  "medical": {
+    "terms": {
+      "diabetes": "நீரிழிவு",
+      "hypertension": "உயர் இரத்த அழுத்தம்",
+      "fever": "காய்ச்சல்",
+      "cough": "இருமல்",
+      "headache": "தலைவலி",
+      "pain": "வலி",
+      "heart": "இதயம்",
+      "blood": "இரத்தம்",
+      "doctor": "மருத்துவர்",
+      "patient": "நோயாளி",
+      "treatment": "சிகிச்சை"
+    }
+  },
+  "_note": "Full translations to be added by Tamil speakers. This is a structure file with sample translations."
+}

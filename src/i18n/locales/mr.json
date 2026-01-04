@@ -1,0 +1,54 @@
+{
+  "_comment": "Marathi (मराठी) translations - Structure file with sample translations",
+  "app": {
+    "name": "डोरा",
+    "tagline": "तुमचा विश्वसनीय वैद्यकीय ज्ञान सहाय्यक",
+    "description": "डॉक्टरांसाठी AI-चालित वैद्यकीय ज्ञान व्यासपीठ"
+  },
+  "nav": {
+    "home": "मुख्यपृष्ठ",
+    "search": "शोधा",
+    "library": "ग्रंथालय",
+    "favorites": "आवडते",
+    "history": "इतिहास",
+    "settings": "सेटिंग्ज",
+    "profile": "प्रोफाइल",
+    "help": "मदत",
+    "about": "बद्दल",
+    "logout": "लॉगआउट",
+    "dashboard": "डॅशबोर्ड",
+    "patients": "रुग्ण",
+    "knowledge_base": "ज्ञान आधार",
+    "clinical_tools": "क्लिनिकल साधने"
+  },
+  "buttons": {
+    "submit": "सबमिट करा",
+    "cancel": "रद्द करा",
+    "save": "जतन करा",
+    "delete": "हटवा",
+    "edit": "संपादित करा",
+    "back": "मागे",
+    "next": "पुढे",
+    "confirm": "पुष्टी करा",
+    "close": "बंद करा",
+    "ok": "ठीक आहे",
+    "yes": "होय",
+    "no": "नाही"
+  },
+  "medical": {
+    "terms": {
+      "diabetes": "मधुमेह",
+      "hypertension": "उच्च रक्तदाब",
+      "fever": "ताप",
+      "cough": "खोकला",
+      "headache": "डोकेदुखी",
+      "pain": "वेदना",
+      "heart": "हृदय",
+      "blood": "रक्त",
+      "doctor": "डॉक्टर",
+      "patient": "रुग्ण",
+      "treatment": "उपचार"
+    }
+  },
+  "_note": "Full translations to be added by Marathi speakers. This is a structure file with sample translations."
+}

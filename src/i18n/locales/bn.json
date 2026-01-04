@@ -1,0 +1,54 @@
+{
+  "_comment": "Bengali (বাংলা) translations - Structure file with sample translations",
+  "app": {
+    "name": "ডোরা",
+    "tagline": "আপনার বিশ্বস্ত চিকিৎসা জ্ঞান সহায়ক",
+    "description": "চিকিৎসকদের জন্য AI-চালিত চিকিৎসা জ্ঞান প্ল্যাটফর্ম"
+  },
+  "nav": {
+    "home": "হোম",
+    "search": "অনুসন্ধান",
+    "library": "লাইব্রেরি",
+    "favorites": "পছন্দের",
+    "history": "ইতিহাস",
+    "settings": "সেটিংস",
+    "profile": "প্রোফাইল",
+    "help": "সাহায্য",
+    "about": "সম্পর্কে",
+    "logout": "লগআউট",
+    "dashboard": "ড্যাশবোর্ড",
+    "patients": "রোগী",
+    "knowledge_base": "জ্ঞান ভিত্তি",
+    "clinical_tools": "ক্লিনিক্যাল সরঞ্জাম"
+  },
+  "buttons": {
+    "submit": "জমা দিন",
+    "cancel": "বাতিল করুন",
+    "save": "সংরক্ষণ করুন",
+    "delete": "মুছে ফেলুন",
+    "edit": "সম্পাদনা করুন",
+    "back": "পিছনে",
+    "next": "পরবর্তী",
+    "confirm": "নিশ্চিত করুন",
+    "close": "বন্ধ করুন",
+    "ok": "ঠিক আছে",
+    "yes": "হ্যাঁ",
+    "no": "না"
+  },
+  "medical": {
+    "terms": {
+      "diabetes": "ডায়াবেটিস",
+      "hypertension": "উচ্চ রক্তচাপ",
+      "fever": "জ্বর",
+      "cough": "কাশি",
+      "headache": "মাথাব্যথা",
+      "pain": "ব্যথা",
+      "heart": "হৃদয়",
+      "blood": "রক্ত",
+      "doctor": "ডাক্তার",
+      "patient": "রোগী",
+      "treatment": "চিকিৎসা"
+    }
+  },
+  "_note": "Full translations to be added by Bengali speakers. This is a structure file with sample translations."
+}

@@ -1,0 +1,195 @@
+================================================================================
+DORA INTERNATIONALIZATION COVERAGE REPORT
+================================================================================
+
+Report Date: 2026-01-04 13:54:27
+Locales Directory: /home/user/Dora/src/i18n/locales
+
+SUPPORTED LANGUAGES
+--------------------------------------------------------------------------------
+
+  BN: Bengali (বাংলা)
+      Total Strings: 40
+      Medical Terms: 11
+
+  EN: English
+      Total Strings: 444
+      Medical Terms: 112
+
+  HI: Hindi (हिंदी)
+      Total Strings: 444
+      Medical Terms: 112
+
+  MR: Marathi (मराठी)
+      Total Strings: 40
+      Medical Terms: 11
+
+  TA: Tamil (தமிழ்)
+      Total Strings: 40
+      Medical Terms: 11
+
+  TE: Telugu (తెలుగు)
+      Total Strings: 40
+      Medical Terms: 11
+
+
+TRANSLATION COVERAGE (vs English baseline)
+--------------------------------------------------------------------------------
+
+⚠️ BN - Bengali (বাংলা)
+   Total Keys: 444
+   Translated: 40
+   Missing: 404
+   Coverage: 9.0%
+   Sample Missing Keys:
+     - medical.terms.dizziness
+     - medical.terms.malaria
+     - medical.dosage.tablet
+     - medical.terms.moderate
+     - forms.labels.department
+
+✅ EN - English
+   Total Keys: 444
+   Translated: 444
+   Missing: 0
+   Coverage: 100.0%
+
+✅ HI - Hindi (हिंदी)
+   Total Keys: 444
+   Translated: 444
+   Missing: 0
+   Coverage: 100.0%
+
+⚠️ MR - Marathi (मराठी)
+   Total Keys: 444
+   Translated: 40
+   Missing: 404
+   Coverage: 9.0%
+   Sample Missing Keys:
+     - medical.terms.dizziness
+     - medical.terms.malaria
+     - medical.dosage.tablet
+     - medical.terms.moderate
+     - forms.labels.department
+
+⚠️ TA - Tamil (தமிழ்)
+   Total Keys: 444
+   Translated: 40
+   Missing: 404
+   Coverage: 9.0%
+   Sample Missing Keys:
+     - medical.terms.dizziness
+     - medical.terms.malaria
+     - medical.dosage.tablet
+     - medical.terms.moderate
+     - forms.labels.department
+
+⚠️ TE - Telugu (తెలుగు)
+   Total Keys: 444
+   Translated: 40
+   Missing: 404
+   Coverage: 9.0%
+   Sample Missing Keys:
+     - medical.terms.dizziness
+     - medical.terms.malaria
+     - medical.dosage.tablet
+     - medical.terms.moderate
+     - forms.labels.department
+
+
+HINDI (हिंदी) - CATEGORY BREAKDOWN
+--------------------------------------------------------------------------------
+
+  medical         : 158 strings - Medical Terms & Info
+  forms           :  53 strings - Forms
+  buttons         :  39 strings - Buttons
+  common          :  31 strings - Common Phrases
+  responses       :  20 strings - Response Templates
+  errors          :  19 strings - Error Messages
+  settings        :  19 strings - Settings
+  nav             :  18 strings - Navigation
+  search          :  16 strings - Search Interface
+  patient         :  16 strings - Patient Management
+  messages        :  15 strings - General Messages
+  success         :  13 strings - Success Messages
+  time            :  13 strings - Time & Date
+  voice           :   6 strings - Voice Commands
+  offline         :   5 strings - Offline Features
+  app             :   3 strings - Application Info
+
+  TOTAL           : 444 strings
+
+
+MEDICAL TERMINOLOGY DATABASE
+--------------------------------------------------------------------------------
+
+Total Medical Terms: 78
+
+By Category:
+  Symptom         :  18 terms
+  Disease         :  15 terms
+  Anatomy         :  15 terms
+  Drug            :   9 terms
+  Lab             :   8 terms
+  Procedure       :   8 terms
+  Personnel       :   5 terms
+
+Sample Medical Term Translations:
+
+  Diabetes
+    English : diabetes
+    Hindi   : मधुमेह
+    Marathi : मधुमेह
+    Tamil   : நீரிழிவு
+
+  Hypertension
+    English : hypertension
+    Hindi   : उच्च रक्तचाप
+    Marathi : उच्च रक्तदाब
+    Tamil   : உயர் இரத்த அழுத்தம்
+
+  Fever
+    English : fever
+    Hindi   : बुखार
+    Marathi : ताप
+    Tamil   : காய்ச்சல்
+
+  Heart
+    English : heart
+    Hindi   : हृदय
+    Marathi : हृदय
+    Tamil   : இதயம்
+
+  Treatment
+    English : treatment
+    Hindi   : इलाज
+    Marathi : उपचार
+    Tamil   : சிகிச்சை
+
+
+INTEGRATION STATUS
+--------------------------------------------------------------------------------
+
+✅ Backend (FastAPI)      : Example available at examples/api_integration.py
+✅ Desktop (Flet)         : Example available at examples/desktop_integration.py
+✅ Mobile (Flutter)       : ARB files + example at examples/flutter_integration.dart
+✅ Translation Service    : Core module at src/i18n/translator.py
+✅ Language Detection     : Module at src/i18n/detector.py
+✅ Medical Terms Database : Module at src/i18n/medical_terms.py
+
+
+RECOMMENDATIONS
+--------------------------------------------------------------------------------
+
+1. Complete translations for Marathi, Tamil, Telugu, and Bengali
+2. Engage native speakers for translation review
+3. Validate medical term accuracy with healthcare professionals
+4. Add more regional language support (Kannada, Malayalam, etc.)
+5. Implement AI-powered query translation for RAG pipeline
+6. Add transliteration support for search queries
+7. Create user preference management for language selection
+8. Add A/B testing for translation quality
+
+================================================================================
+END OF REPORT
+================================================================================
