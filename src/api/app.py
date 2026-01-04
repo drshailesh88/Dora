@@ -16,6 +16,15 @@ from src.licensing import LicenseManager, LicenseStatus
 from src.api.auth import router as auth_router
 from src.api.payments import router as payments_router
 from src.api.personalization import router as personalization_router
+from src.api.tenants import router as tenants_router
+try:
+    from src.api.admin import router as admin_router
+except ImportError:
+    admin_router = None
+try:
+    from src.api.academic import router as academic_router
+except ImportError:
+    academic_router = None
 
 
 # Global pipeline instances
@@ -62,10 +71,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Tenant context middleware
+from src.tenants.middleware import TenantContextMiddleware
+app.add_middleware(TenantContextMiddleware)
+
 # Include routers
 app.include_router(auth_router)
 app.include_router(payments_router)
 app.include_router(personalization_router)
+app.include_router(tenants_router)
+if admin_router:
+    app.include_router(admin_router)
+if academic_router:
+    app.include_router(academic_router)
 
 
 # Request/Response models
