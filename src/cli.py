@@ -306,5 +306,122 @@ def graph_disease(
         raise typer.Exit(1)
 
 
+# Analytics commands
+analytics_app = typer.Typer(help="Analytics operations")
+app.add_typer(analytics_app, name="analytics")
+
+
+@analytics_app.command("summary")
+def analytics_summary(
+    days: int = typer.Option(30, "--days", "-d", help="Number of days to include"),
+):
+    """Show analytics summary."""
+    from src.analytics import AnalyticsDashboard
+
+    dashboard = AnalyticsDashboard()
+    console.print(dashboard.format_summary_text())
+
+
+@analytics_app.command("daily")
+def analytics_daily(
+    days: int = typer.Option(7, "--days", "-d", help="Number of days to show"),
+):
+    """Show daily analytics."""
+    from src.analytics import AnalyticsStorage
+    from datetime import datetime, timedelta, timezone
+
+    storage = AnalyticsStorage()
+    end_date = datetime.now(timezone.utc)
+    start_date = end_date - timedelta(days=days)
+
+    metrics = storage.get_daily_metrics(start_date=start_date, end_date=end_date)
+
+    if not metrics:
+        console.print("[yellow]No data for the specified period[/yellow]")
+        return
+
+    console.print(Panel("Daily Analytics", title="📊"))
+
+    for m in metrics[:days]:
+        console.print(
+            f"[bold]{m['date']}[/bold]: "
+            f"Queries: {m['total_queries']}, "
+            f"Drug Checks: {m['drug_checks']}, "
+            f"Errors: {m['errors']}, "
+            f"Avg Latency: {m['avg_latency']:.0f}ms"
+        )
+
+
+@analytics_app.command("popular")
+def analytics_popular(
+    limit: int = typer.Option(10, "--limit", "-n", help="Number of queries to show"),
+):
+    """Show popular queries."""
+    from src.analytics import AnalyticsStorage
+
+    storage = AnalyticsStorage()
+    queries = storage.get_popular_queries(limit=limit)
+
+    if not queries:
+        console.print("[yellow]No query data available[/yellow]")
+        return
+
+    console.print(Panel("Popular Queries", title="🔥"))
+
+    for i, q in enumerate(queries, 1):
+        console.print(
+            f"[bold]{i}.[/bold] ({q['count']}x) {q['query'][:60]}... "
+            f"[dim]({q['avg_latency']:.0f}ms avg)[/dim]"
+        )
+
+
+@analytics_app.command("health")
+def analytics_health():
+    """Check system health based on analytics."""
+    from src.analytics import AnalyticsDashboard
+
+    dashboard = AnalyticsDashboard()
+    health = dashboard.get_health_status()
+
+    status_colors = {
+        "healthy": "green",
+        "warning": "yellow",
+        "degraded": "red",
+    }
+    color = status_colors.get(health["status"], "white")
+
+    console.print(Panel(
+        f"Status: [{color}]{health['status'].upper()}[/{color}]\n"
+        f"Error Rate: {health['metrics']['error_rate']*100:.1f}%\n"
+        f"Avg Latency: {health['metrics']['avg_latency_ms']:.0f}ms\n"
+        f"High Confidence: {health['metrics']['high_confidence_rate']*100:.1f}%",
+        title="🏥 System Health",
+    ))
+
+    if health["issues"]:
+        console.print("\n[bold]Issues:[/bold]")
+        for issue in health["issues"]:
+            console.print(f"  ⚠️  {issue}")
+
+
+@analytics_app.command("export")
+def analytics_export(
+    output: Path = typer.Option(None, "--output", "-o", help="Output file path"),
+):
+    """Export analytics data."""
+    from src.analytics import AnalyticsStorage
+    from datetime import datetime, timezone
+
+    storage = AnalyticsStorage()
+
+    if output is None:
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        output = Path(f"dora_analytics_{timestamp}.json")
+
+    count = storage.export_to_json(output)
+
+    console.print(f"[green]✓ Exported {count} records to {output}[/green]")
+
+
 if __name__ == "__main__":
     app()
