@@ -1,0 +1,111 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dora"
+version = "0.1.0"
+description = "DocAssist Dora - Medical Knowledge Platform (UpToDate Killer)"
+readme = "README.md"
+license = "Proprietary"
+requires-python = ">=3.11"
+authors = [
+    { name = "DocAssist", email = "dev@docassist.in" }
+]
+keywords = ["medical", "rag", "ai", "healthcare", "knowledge"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Healthcare Industry",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # Core
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+
+    # API
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "httpx>=0.26.0",
+
+    # Embeddings & ML
+    "sentence-transformers>=2.2.2",
+    "torch>=2.0.0",
+    "transformers>=4.36.0",
+
+    # Vector Database
+    "qdrant-client>=1.7.0",
+    "chromadb>=0.4.22",
+
+    # Sparse Retrieval
+    "rank-bm25>=0.2.2",
+
+    # Reranking
+    "cohere>=4.0.0",
+
+    # Document Processing
+    "pypdf>=3.17.0",
+    "unstructured[pdf]>=0.12.0",
+
+    # LLM
+    "openai>=1.0.0",
+    "anthropic>=0.18.0",
+    "ollama>=0.1.0",
+
+    # Graph Database (optional)
+    "neo4j>=5.0.0",
+
+    # Utilities
+    "rich>=13.0.0",
+    "typer>=0.9.0",
+    "tenacity>=8.2.0",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+voice = [
+    "openai-whisper>=20231117",
+    "sounddevice>=0.4.6",
+    "openwakeword>=0.5.0",
+    # chatterbox-tts  # Install separately: pip install chatterbox-tts
+]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.21.0",
+    "mypy>=1.8.0",
+    "ruff>=0.1.0",
+    "black>=24.0.0",
+    "pre-commit>=3.6.0",
+]
+ui = [
+    "flet>=0.21.0",
+]
+
+[project.scripts]
+dora = "dora.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dora"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-v --cov=src --cov-report=term-missing"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
