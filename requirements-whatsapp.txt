@@ -1,0 +1,29 @@
+# WhatsApp Integration Dependencies for Dora
+# Install with: pip install -r requirements-whatsapp.txt
+
+# HTTP Client (required for WhatsApp Cloud API)
+httpx>=0.25.0  # Async HTTP client (recommended)
+
+# Voice Processing (required for voice notes)
+openai-whisper>=20230314  # Speech-to-text transcription
+
+# Text-to-Speech (optional, for voice responses)
+piper-tts>=1.2.0  # Local TTS (optional)
+
+# PDF Generation (for handouts)
+reportlab>=4.0.0  # PDF generation
+
+# QR Code Generation (for app download links)
+qrcode[pil]>=7.4.2  # QR code generation with image support
+
+# Alternative WhatsApp Providers (optional)
+twilio>=8.10.0  # If using Twilio instead of Meta Cloud API (optional)
+
+# Image Processing (for future image analysis features)
+pillow>=10.0.0  # Image processing
+
+# Already included in main requirements:
+# - fastapi
+# - pydantic
+# - python-dotenv
+# - uvicorn
