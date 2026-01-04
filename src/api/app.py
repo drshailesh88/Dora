@@ -54,6 +54,18 @@ try:
     from src.api.education import router as education_router
 except ImportError:
     education_router = None
+try:
+    from src.api.analytics import router as analytics_router
+except ImportError:
+    analytics_router = None
+try:
+    from src.api.news import router as news_router
+except ImportError:
+    news_router = None
+try:
+    from src.api.peers import router as peers_router
+except ImportError:
+    peers_router = None
 
 
 # Global pipeline instances
@@ -128,6 +140,12 @@ if emr_router:
     app.include_router(emr_router)
 if education_router:
     app.include_router(education_router)
+if analytics_router:
+    app.include_router(analytics_router)
+if news_router:
+    app.include_router(news_router)
+if peers_router:
+    app.include_router(peers_router)
 
 
 # Request/Response models
