@@ -16,6 +16,7 @@ class LanguageDetector:
         "hi": (0x0900, 0x097F),  # Devanagari (Hindi/Marathi)
         "ta": (0x0B80, 0x0BFF),  # Tamil
         "te": (0x0C00, 0x0C7F),  # Telugu
+        "kn": (0x0C80, 0x0CFF),  # Kannada
         "bn": (0x0980, 0x09FF),  # Bengali
     }
 
@@ -44,6 +45,12 @@ class LanguageDetector:
         "రోగి", "వైద్యుడు", "ఔషధం", "వ్యాధి", "చికిత్స"
     }
 
+    # Common Kannada words
+    KANNADA_WORDS = {
+        "ಏನು", "ಹೇಗೆ", "ಯಾವಾಗ", "ಎಲ್ಲಿ", "ಯಾರು", "ಇದು", "ಅದು",
+        "ರೋಗಿ", "ವೈದ್ಯರು", "ಔಷಧ", "ರೋಗ", "ಚಿಕಿತ್ಸೆ"
+    }
+
     # Common Bengali words
     BENGALI_WORDS = {
         "কি", "কিভাবে", "কখন", "কোথায়", "কে", "এটা", "সেটা",
@@ -55,6 +62,7 @@ class LanguageDetector:
         "mr": MARATHI_WORDS,
         "ta": TAMIL_WORDS,
         "te": TELUGU_WORDS,
+        "kn": KANNADA_WORDS,
         "bn": BENGALI_WORDS,
     }
 
@@ -88,6 +96,7 @@ class LanguageDetector:
             "mr": 0.0,
             "ta": 0.0,
             "te": 0.0,
+            "kn": 0.0,
             "bn": 0.0,
         }
 
@@ -183,6 +192,7 @@ class LanguageDetector:
             "mr": "Devanagari",
             "ta": "Tamil",
             "te": "Telugu",
+            "kn": "Kannada",
             "bn": "Bengali",
         }
         return scripts.get(lang_code, "Unknown")

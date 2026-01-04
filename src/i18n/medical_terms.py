@@ -18,6 +18,7 @@ class MedicalTerm:
     marathi: Optional[str] = None
     tamil: Optional[str] = None
     telugu: Optional[str] = None
+    kannada: Optional[str] = None
     bengali: Optional[str] = None
     umls_cui: Optional[str] = None  # UMLS Concept Unique Identifier
     category: str = "general"  # disease, symptom, anatomy, drug, procedure, lab
@@ -181,6 +182,7 @@ class MedicalTermsDatabase:
             "mr": term.marathi,
             "ta": term.tamil,
             "te": term.telugu,
+            "kn": term.kannada,
             "bn": term.bengali,
         }
 

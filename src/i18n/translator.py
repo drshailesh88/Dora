@@ -21,7 +21,7 @@ class Translator:
     """Main translation service for Dora platform."""
 
     DEFAULT_LOCALE = "en"
-    SUPPORTED_LOCALES = ["en", "hi", "mr", "ta", "te", "bn"]
+    SUPPORTED_LOCALES = ["en", "hi", "mr", "ta", "te", "kn", "bn"]
 
     def __init__(self, locale: str = DEFAULT_LOCALE):
         """
