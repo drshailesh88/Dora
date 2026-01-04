@@ -9,6 +9,8 @@ from .query_view import QueryView
 from .drugs_view import DrugsView
 from .history_view import HistoryView
 from .settings_view import SettingsView
+from .calculators_view import CalculatorsView
+from .protocols_view import ProtocolsView
 
 
 class MainView(ft.UserControl):
@@ -25,6 +27,8 @@ class MainView(ft.UserControl):
         self.views = {
             "query": QueryView(api_client, state_manager),
             "drugs": DrugsView(api_client, state_manager),
+            "calculators": CalculatorsView(api_client, state_manager),
+            "protocols": ProtocolsView(api_client, state_manager),
             "history": HistoryView(state_manager, on_rerun=self._rerun_query),
             "settings": SettingsView(api_client, state_manager),
         }
@@ -97,6 +101,18 @@ class MainView(ft.UserControl):
                     label="Drug Interactions",
                     selected=self.current_view == "drugs",
                     on_click=lambda: self._navigate("drugs"),
+                ),
+                SidebarItem(
+                    icon=ft.icons.CALCULATE,
+                    label="Calculators",
+                    selected=self.current_view == "calculators",
+                    on_click=lambda: self._navigate("calculators"),
+                ),
+                SidebarItem(
+                    icon=ft.icons.CHECKLIST,
+                    label="Protocols",
+                    selected=self.current_view == "protocols",
+                    on_click=lambda: self._navigate("protocols"),
                 ),
                 SidebarItem(
                     icon=ft.icons.HISTORY,
