@@ -193,5 +193,118 @@ def activate(
         raise typer.Exit(1)
 
 
+# Knowledge Graph commands
+graph_app = typer.Typer(help="Knowledge graph operations")
+app.add_typer(graph_app, name="graph")
+
+
+@graph_app.command("setup")
+def graph_setup():
+    """Set up the knowledge graph schema."""
+    from src.graph import Neo4jClient, KnowledgeGraphBuilder
+
+    console.print(Panel("Setting up knowledge graph schema...", title="🔗 Knowledge Graph"))
+
+    try:
+        client = Neo4jClient()
+        if not client.verify_connectivity():
+            console.print("[red]Cannot connect to Neo4j. Make sure it's running.[/red]")
+            raise typer.Exit(1)
+
+        builder = KnowledgeGraphBuilder(client)
+        builder.setup_schema()
+
+        console.print("[green]✓ Schema created successfully[/green]")
+        client.close()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@graph_app.command("sample")
+def graph_sample():
+    """Load sample medical data into the graph."""
+    from src.graph import Neo4jClient, KnowledgeGraphBuilder
+
+    console.print(Panel("Loading sample medical data...", title="🔗 Knowledge Graph"))
+
+    try:
+        client = Neo4jClient()
+        builder = KnowledgeGraphBuilder(client)
+        builder.create_sample_data()
+
+        console.print("[green]✓ Sample data loaded successfully[/green]")
+        client.close()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@graph_app.command("stats")
+def graph_stats():
+    """Show knowledge graph statistics."""
+    from src.graph import Neo4jClient, MedicalGraphQueries
+
+    try:
+        client = Neo4jClient()
+        queries = MedicalGraphQueries(client)
+        stats = queries.get_stats()
+
+        console.print(Panel.fit(
+            f"Nodes: {stats.get('nodeCount', 0)}\n"
+            f"Relationships: {stats.get('relCount', 0)}",
+            title="📊 Knowledge Graph Stats",
+        ))
+        client.close()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
+@graph_app.command("disease")
+def graph_disease(
+    identifier: str = typer.Argument(..., help="Disease name, CUI, or ICD-10 code"),
+):
+    """Get disease information from knowledge graph."""
+    from src.graph import Neo4jClient, MedicalGraphQueries
+
+    try:
+        client = Neo4jClient()
+        queries = MedicalGraphQueries(client)
+
+        # Get disease
+        disease = queries.get_disease(identifier)
+        if not disease:
+            console.print(f"[yellow]Disease not found: {identifier}[/yellow]")
+            client.close()
+            return
+
+        console.print(Panel(
+            f"Name: {disease.get('name', 'N/A')}\n"
+            f"CUI: {disease.get('cui', 'N/A')}\n"
+            f"ICD-10: {disease.get('icd10', 'N/A')}",
+            title=f"🏥 {disease.get('name', identifier)}",
+        ))
+
+        # Get symptoms
+        symptoms = queries.get_disease_symptoms(identifier)
+        if symptoms:
+            console.print("\n[bold]Symptoms:[/bold]")
+            for s in symptoms[:10]:
+                console.print(f"  • {s['symptom']} ({s.get('frequency', 'unknown')})")
+
+        # Get treatments
+        treatments = queries.get_disease_treatments(identifier)
+        if treatments:
+            console.print("\n[bold]Treatments:[/bold]")
+            for t in treatments[:10]:
+                console.print(f"  • {t['drug']} (Line {t.get('treatment_line', '?')})")
+
+        client.close()
+    except Exception as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()
