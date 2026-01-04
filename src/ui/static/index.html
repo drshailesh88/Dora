@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dora - Medical Knowledge Assistant</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --bg: #0f172a;
+            --bg-secondary: #1e293b;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        main {
+            flex: 1;
+            display: flex;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 2rem;
+            gap: 2rem;
+        }
+
+        .chat-container {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 0.75rem;
+            min-height: 400px;
+            max-height: 600px;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            max-width: 85%;
+        }
+
+        .message.user {
+            background: var(--primary);
+            align-self: flex-end;
+        }
+
+        .message.assistant {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            align-self: flex-start;
+        }
+
+        .message .content {
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .message .meta {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .citations {
+            margin-top: 1rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .citations h4 {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .citation {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            padding: 0.25rem 0;
+        }
+
+        .input-container {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            background: var(--bg-secondary);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            padding: 1rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: var(--primary-dark);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 0.75rem;
+            padding: 1rem;
+        }
+
+        .card h3 {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-indicator.online {
+            background: var(--success);
+        }
+
+        .status-indicator.offline {
+            background: var(--warning);
+        }
+
+        .confidence {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .confidence.high {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .confidence.medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .confidence.low {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        .loading-spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .example-queries {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .example-query {
+            padding: 0.5rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .example-query:hover {
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">🏥 Dora</div>
+        <div class="subtitle">Medical Knowledge Assistant</div>
+    </header>
+
+    <main>
+        <div class="chat-container">
+            <div class="messages" id="messages">
+                <div class="message assistant">
+                    <div class="content">Hello! I'm Dora, your medical knowledge assistant. Ask me any clinical question and I'll provide evidence-based answers with citations.
+
+Note: This is for physician reference only. Always verify before clinical decisions.</div>
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input type="text" id="query-input" placeholder="Ask a medical question..." autocomplete="off">
+                <button id="send-btn" onclick="sendQuery()">Send</button>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="card">
+                <h3>System Status</h3>
+                <div class="status-item">
+                    <span><span class="status-indicator online" id="api-status"></span>API</span>
+                    <span id="api-status-text">Connected</span>
+                </div>
+                <div class="status-item">
+                    <span><span class="status-indicator" id="llm-status"></span>LLM</span>
+                    <span id="llm-status-text">Checking...</span>
+                </div>
+                <div class="status-item">
+                    <span><span class="status-indicator" id="rerank-status"></span>Reranker</span>
+                    <span id="rerank-status-text">Checking...</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Example Questions</h3>
+                <div class="example-queries">
+                    <div class="example-query" onclick="setQuery(this)">What is the first-line treatment for type 2 diabetes?</div>
+                    <div class="example-query" onclick="setQuery(this)">What are the symptoms of heart failure?</div>
+                    <div class="example-query" onclick="setQuery(this)">How do I manage hypertension in pregnancy?</div>
+                    <div class="example-query" onclick="setQuery(this)">What are the contraindications for metformin?</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Last Query Stats</h3>
+                <div class="status-item">
+                    <span>Latency</span>
+                    <span id="latency">-</span>
+                </div>
+                <div class="status-item">
+                    <span>Model</span>
+                    <span id="model">-</span>
+                </div>
+                <div class="status-item">
+                    <span>Citations</span>
+                    <span id="citation-count">-</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = window.location.origin;
+        const messagesEl = document.getElementById('messages');
+        const inputEl = document.getElementById('query-input');
+        const sendBtn = document.getElementById('send-btn');
+
+        // Check API health on load
+        checkHealth();
+
+        // Enter key to send
+        inputEl.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendQuery();
+        });
+
+        async function checkHealth() {
+            try {
+                const res = await fetch(`${API_URL}/health`);
+                const data = await res.json();
+
+                document.getElementById('api-status').classList.add('online');
+                document.getElementById('api-status-text').textContent = 'Connected';
+
+                const llmStatus = document.getElementById('llm-status');
+                const llmText = document.getElementById('llm-status-text');
+                if (data.has_cloud_llm) {
+                    llmStatus.classList.add('online');
+                    llmText.textContent = 'Cloud Ready';
+                } else {
+                    llmStatus.classList.add('offline');
+                    llmText.textContent = 'Local Only';
+                }
+
+                const rerankStatus = document.getElementById('rerank-status');
+                const rerankText = document.getElementById('rerank-status-text');
+                if (data.has_reranker) {
+                    rerankStatus.classList.add('online');
+                    rerankText.textContent = 'Enabled';
+                } else {
+                    rerankStatus.classList.add('offline');
+                    rerankText.textContent = 'Disabled';
+                }
+            } catch (e) {
+                document.getElementById('api-status').classList.add('offline');
+                document.getElementById('api-status-text').textContent = 'Disconnected';
+            }
+        }
+
+        function setQuery(el) {
+            inputEl.value = el.textContent;
+            inputEl.focus();
+        }
+
+        async function sendQuery() {
+            const query = inputEl.value.trim();
+            if (!query) return;
+
+            // Add user message
+            addMessage(query, 'user');
+            inputEl.value = '';
+            sendBtn.disabled = true;
+
+            // Add loading message
+            const loadingId = addLoading();
+
+            try {
+                const res = await fetch(`${API_URL}/api/v1/query`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: query })
+                });
+
+                const data = await res.json();
+                removeLoading(loadingId);
+
+                if (data.success && data.answer) {
+                    addAnswer(data.answer);
+                    updateStats(data.answer);
+                } else {
+                    addMessage(`Error: ${data.error || 'Unknown error'}`, 'assistant');
+                }
+            } catch (e) {
+                removeLoading(loadingId);
+                addMessage(`Error: ${e.message}`, 'assistant');
+            }
+
+            sendBtn.disabled = false;
+        }
+
+        function addMessage(content, role) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.innerHTML = `<div class="content">${escapeHtml(content)}</div>`;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function addAnswer(answer) {
+            const div = document.createElement('div');
+            div.className = 'message assistant';
+
+            let citationsHtml = '';
+            if (answer.citations && answer.citations.length > 0) {
+                citationsHtml = `
+                    <div class="citations">
+                        <h4>Sources:</h4>
+                        ${answer.citations.map((c, i) => `
+                            <div class="citation">[${i+1}] ${c.source}${c.title ? ' - ' + c.title : ''}</div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            div.innerHTML = `
+                <div class="content">${escapeHtml(answer.answer)}</div>
+                <div class="meta">
+                    <span class="confidence ${answer.confidence}">${answer.confidence.toUpperCase()}</span>
+                    <span>${answer.latency_ms}ms</span>
+                </div>
+                ${citationsHtml}
+            `;
+
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function addLoading() {
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'message assistant';
+            div.innerHTML = `
+                <div class="loading">
+                    <div class="loading-spinner"></div>
+                    <span>Searching knowledge base...</span>
+                </div>
+            `;
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+            return id;
+        }
+
+        function removeLoading(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function updateStats(answer) {
+            document.getElementById('latency').textContent = answer.latency_ms + 'ms';
+            document.getElementById('model').textContent = answer.model_used;
+            document.getElementById('citation-count').textContent = answer.citations?.length || 0;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
