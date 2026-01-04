@@ -14,6 +14,7 @@ from src.ingestion import IngestionPipeline
 from src.drugs import DrugInteractionChecker
 from src.licensing import LicenseManager, LicenseStatus
 from src.api.auth import router as auth_router
+from src.api.payments import router as payments_router
 
 
 # Global pipeline instances
@@ -62,6 +63,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth_router)
+app.include_router(payments_router)
 
 
 # Request/Response models
