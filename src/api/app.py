@@ -17,6 +17,7 @@ from src.api.auth import router as auth_router
 from src.api.payments import router as payments_router
 from src.api.personalization import router as personalization_router
 from src.api.tenants import router as tenants_router
+from src.api.engagement import router as engagement_router
 try:
     from src.api.admin import router as admin_router
 except ImportError:
@@ -25,6 +26,26 @@ try:
     from src.api.academic import router as academic_router
 except ImportError:
     academic_router = None
+try:
+    from src.api.whatsapp import router as whatsapp_router
+except ImportError:
+    whatsapp_router = None
+try:
+    from src.api.drugs import router as drugs_router
+except ImportError:
+    drugs_router = None
+try:
+    from src.api.voice import router as voice_router
+except ImportError:
+    voice_router = None
+try:
+    from src.api.learning import router as learning_router
+except ImportError:
+    learning_router = None
+try:
+    from src.api.format import router as format_router
+except ImportError:
+    format_router = None
 
 
 # Global pipeline instances
@@ -80,10 +101,21 @@ app.include_router(auth_router)
 app.include_router(payments_router)
 app.include_router(personalization_router)
 app.include_router(tenants_router)
+app.include_router(engagement_router)
 if admin_router:
     app.include_router(admin_router)
 if academic_router:
     app.include_router(academic_router)
+if whatsapp_router:
+    app.include_router(whatsapp_router)
+if drugs_router:
+    app.include_router(drugs_router)
+if voice_router:
+    app.include_router(voice_router)
+if learning_router:
+    app.include_router(learning_router)
+if format_router:
+    app.include_router(format_router)
 
 
 # Request/Response models
