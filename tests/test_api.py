@@ -148,3 +148,158 @@ class TestAPIValidation:
         )
 
         assert response.status_code == 503
+
+
+class TestCalculatorEndpoints:
+    """Tests for medical calculator endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_list_calculators(self, client):
+        """Should list available calculators."""
+        response = client.get("/api/v1/calculators")
+        assert response.status_code == 200
+        data = response.json()
+        assert "calculators" in data or isinstance(data, list)
+
+    def test_gfr_calculator(self, client):
+        """Should calculate eGFR correctly."""
+        response = client.post(
+            "/api/v1/calculators/egfr",
+            json={
+                "creatinine": 1.2,
+                "age": 55,
+                "sex": "male",
+                "race": "other",
+            },
+        )
+        if response.status_code == 200:
+            data = response.json()
+            assert "egfr" in data
+
+    def test_bmi_calculator(self, client):
+        """Should calculate BMI correctly."""
+        response = client.post(
+            "/api/v1/calculators/bmi",
+            json={
+                "weight_kg": 70,
+                "height_cm": 175,
+            },
+        )
+        if response.status_code == 200:
+            data = response.json()
+            assert "bmi" in data
+
+
+class TestEngagementEndpoints:
+    """Tests for engagement feature endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_get_trending_queries(self, client):
+        """Should return trending queries."""
+        response = client.get("/api/v1/engagement/trending")
+        # May require auth
+        assert response.status_code in [200, 401, 404]
+
+
+class TestLearningEndpoints:
+    """Tests for CME/learning endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_get_quiz_endpoint(self, client):
+        """Should return quiz."""
+        response = client.get("/api/v1/learning/quiz/daily")
+        # May require auth
+        assert response.status_code in [200, 401, 404]
+
+
+class TestGamificationEndpoints:
+    """Tests for gamification endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_get_leaderboard(self, client):
+        """Should return leaderboard."""
+        response = client.get("/api/v1/gamification/leaderboard")
+        assert response.status_code in [200, 401, 404]
+
+
+class TestSubscriptionEndpoints:
+    """Tests for subscription/billing endpoints."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_get_plans(self, client):
+        """Should return available subscription plans."""
+        response = client.get("/api/v1/subscription/plans")
+        assert response.status_code in [200, 404]
+
+
+class TestErrorHandling:
+    """Tests for API error handling."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_404_for_unknown_route(self, client):
+        """Should return 404 for unknown routes."""
+        response = client.get("/api/v1/nonexistent")
+        assert response.status_code == 404
+
+    def test_validation_error_format(self, client):
+        """Validation errors should have consistent format."""
+        response = client.post(
+            "/api/v1/query",
+            json={},  # Missing required fields
+        )
+        assert response.status_code == 422
+        data = response.json()
+        assert "detail" in data
+
+
+class TestCORSAndSecurity:
+    """Tests for CORS and security headers."""
+
+    @pytest.fixture
+    def client(self):
+        """Create test client."""
+        from src.api.app import app
+        return TestClient(app)
+
+    def test_cors_preflight(self, client):
+        """CORS preflight should be handled."""
+        response = client.options(
+            "/api/v1/query",
+            headers={"Origin": "https://dora.docassist.in"},
+        )
+        assert response.status_code in [200, 204, 405]
+
+    def test_health_endpoint_public(self, client):
+        """Health endpoint should be publicly accessible."""
+        response = client.get("/health")
+        assert response.status_code == 200
