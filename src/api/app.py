@@ -13,6 +13,7 @@ from src.core.pipeline import MedicalQueryPipeline
 from src.ingestion import IngestionPipeline
 from src.drugs import DrugInteractionChecker
 from src.licensing import LicenseManager, LicenseStatus
+from src.api.auth import router as auth_router
 
 
 # Global pipeline instances
@@ -58,6 +59,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth_router)
 
 
 # Request/Response models

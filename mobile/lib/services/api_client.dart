@@ -6,27 +6,28 @@ import '../models/drug_interaction.dart';
 /// API client for Dora backend
 class DoraApiClient {
   final Dio _dio;
-  final String baseUrl;
 
   DoraApiClient({
-    required this.baseUrl,
     Dio? dio,
+    String? baseUrl,
   }) : _dio = dio ?? Dio() {
-    _dio.options = BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 60),
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    );
+    if (baseUrl != null && dio == null) {
+      _dio.options = BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 60),
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      );
 
-    // Add interceptors for logging
-    _dio.interceptors.add(LogInterceptor(
-      requestBody: true,
-      responseBody: true,
-    ));
+      // Add interceptors for logging in debug mode
+      _dio.interceptors.add(LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+      ));
+    }
   }
 
   /// Health check
@@ -128,8 +129,7 @@ class DoraApiClient {
 
 /// Provider for API client
 final apiClientProvider = Provider<DoraApiClient>((ref) {
-  // Default to localhost, can be configured
-  return DoraApiClient(baseUrl: 'http://localhost:8000');
+  throw UnimplementedError('DoraApiClient must be overridden in main()');
 });
 
 /// Provider for connection status
