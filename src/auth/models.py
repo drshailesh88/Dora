@@ -11,7 +11,9 @@ import uuid
 
 class UserRole(str, Enum):
     """User roles for RBAC"""
+    SUPER_ADMIN = "super_admin"
     ADMIN = "admin"
+    SUPPORT = "support"
     DOCTOR = "doctor"
     NURSE = "nurse"
     STAFF = "staff"
@@ -24,9 +26,20 @@ class UserRole(str, Enum):
         base = {"query", "history.view", "drugs.check"}
 
         role_permissions = {
+            UserRole.SUPER_ADMIN: base | {
+                "admin.users", "admin.licenses", "admin.analytics",
+                "admin.content", "admin.notifications", "admin.settings",
+                "admin.audit", "admin.subscriptions", "admin.payments",
+                "history.all", "settings.all", "patients.all", "system.config"
+            },
             UserRole.ADMIN: base | {
                 "admin.users", "admin.licenses", "admin.analytics",
+                "admin.subscriptions", "admin.payments", "admin.audit",
                 "history.all", "settings.all", "patients.all"
+            },
+            UserRole.SUPPORT: base | {
+                "admin.users.view", "admin.analytics.view",
+                "admin.subscriptions.view", "history.all"
             },
             UserRole.DOCTOR: base | {
                 "patients.own", "history.own", "prescribe",
