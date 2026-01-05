@@ -1,0 +1,273 @@
+# Alert Rules for Dora Medical Knowledge Platform
+# ================================================
+# HIPAA-aware alerts for healthcare compliance
+
+groups:
+  # ==========================================================================
+  # API Health Alerts
+  # ==========================================================================
+  - name: api_health
+    interval: 30s
+    rules:
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(dora_query_duration_ms_bucket[5m])) > 5000
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "API query latency is high"
+          description: "95th percentile query latency is {{ $value | humanizeDuration }} (threshold: 5s)"
+
+      - alert: APICriticalLatency
+        expr: histogram_quantile(0.99, rate(dora_query_duration_ms_bucket[5m])) > 10000
+        for: 2m
+        labels:
+          severity: critical
+          category: performance
+        annotations:
+          summary: "API query latency is critically high"
+          description: "99th percentile query latency is {{ $value | humanizeDuration }}"
+
+      - alert: APIHighErrorRate
+        expr: rate(dora_query_errors_total[5m]) / rate(dora_queries_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          category: reliability
+        annotations:
+          summary: "API error rate is elevated"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: APICriticalErrorRate
+        expr: rate(dora_query_errors_total[5m]) / rate(dora_queries_total[5m]) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+          category: reliability
+        annotations:
+          summary: "API error rate is critically high"
+          description: "Error rate is {{ $value | humanizePercentage }}"
+
+      - alert: APIDown
+        expr: up{job="dora-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Dora API is down"
+          description: "API service is not responding to health checks"
+
+  # ==========================================================================
+  # Database Alerts
+  # ==========================================================================
+  - name: database_health
+    interval: 30s
+    rules:
+      - alert: PostgreSQLDown
+        expr: up{job="postgres"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is not responding"
+
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 180
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL connection count is high"
+          description: "{{ $value }} connections (max: 200)"
+
+      - alert: PostgreSQLSlowQueries
+        expr: rate(pg_stat_activity_max_tx_duration[5m]) > 60
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "PostgreSQL has slow queries"
+          description: "Queries running longer than 60 seconds"
+
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: cache
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache is not responding"
+
+      - alert: RedisHighMemory
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis is using {{ $value | humanizePercentage }} of max memory"
+
+      - alert: QdrantDown
+        expr: up{job="qdrant"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: vector_db
+        annotations:
+          summary: "Qdrant vector database is down"
+          description: "Qdrant is not responding to health checks"
+
+  # ==========================================================================
+  # Resource Alerts
+  # ==========================================================================
+  - name: resources
+    interval: 30s
+    rules:
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      - alert: CriticalCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 95
+        for: 5m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is {{ $value | humanize }}%"
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | humanize }}%"
+
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 80
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "Disk space low on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value | humanize }}%"
+
+      - alert: DiskSpaceCritical
+        expr: (1 - (node_filesystem_avail_bytes / node_filesystem_size_bytes)) * 100 > 95
+        for: 5m
+        labels:
+          severity: critical
+          category: resources
+        annotations:
+          summary: "Disk space critical on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value | humanize }}%"
+
+  # ==========================================================================
+  # HIPAA Compliance Alerts
+  # ==========================================================================
+  - name: hipaa_compliance
+    interval: 60s
+    rules:
+      - alert: AuditLogFailure
+        expr: rate(dora_audit_log_errors_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          category: compliance
+          hipaa: true
+        annotations:
+          summary: "HIPAA ALERT: Audit logging is failing"
+          description: "Audit logs are not being recorded properly"
+
+      - alert: UnauthorizedAccessAttempts
+        expr: rate(dora_unauthorized_access_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          category: security
+          hipaa: true
+        annotations:
+          summary: "HIPAA ALERT: High rate of unauthorized access attempts"
+          description: "{{ $value }} unauthorized access attempts per minute"
+
+      - alert: PHIAccessAnomaly
+        expr: rate(dora_phi_access_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          category: compliance
+          hipaa: true
+        annotations:
+          summary: "Unusual PHI access pattern detected"
+          description: "PHI access rate is abnormally high: {{ $value }}/min"
+
+  # ==========================================================================
+  # LLM Performance Alerts
+  # ==========================================================================
+  - name: llm_health
+    interval: 30s
+    rules:
+      - alert: LLMHighLatency
+        expr: histogram_quantile(0.95, rate(dora_llm_duration_ms_bucket[5m])) > 30000
+        for: 5m
+        labels:
+          severity: warning
+          category: llm
+        annotations:
+          summary: "LLM response time is high"
+          description: "95th percentile LLM latency is {{ $value | humanizeDuration }}"
+
+      - alert: LLMFailureRate
+        expr: rate(dora_llm_errors_total[5m]) / rate(dora_llm_requests_total[5m]) > 0.10
+        for: 5m
+        labels:
+          severity: warning
+          category: llm
+        annotations:
+          summary: "LLM failure rate is elevated"
+          description: "LLM error rate is {{ $value | humanizePercentage }}"
+
+      - alert: OllamaDown
+        expr: up{job="ollama"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: llm
+        annotations:
+          summary: "Ollama (local LLM) is down"
+          description: "Local LLM fallback is unavailable"
+
+  # ==========================================================================
+  # Cache Performance Alerts
+  # ==========================================================================
+  - name: cache_health
+    interval: 30s
+    rules:
+      - alert: LowCacheHitRate
+        expr: rate(dora_cache_hits_total[5m]) / (rate(dora_cache_hits_total[5m]) + rate(dora_cache_misses_total[5m])) < 0.5
+        for: 15m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Cache hit rate is low"
+          description: "Cache hit rate is only {{ $value | humanizePercentage }}"
