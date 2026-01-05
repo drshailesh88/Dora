@@ -160,11 +160,19 @@ class SpecialistMatcher:
                 if request.preferred_language not in specialist.languages:
                     continue
 
-            # Check fee constraints (would need fee data)
-            # TODO: Integrate with fee data
+            # Check fee constraints by integrating with fee data
             if consider_fee and request.max_fee:
-                # For now, skip this check
-                pass
+                # Import directory to access fee data
+                from src.peers.directory import SpecialistDirectory
+                directory = SpecialistDirectory()
+
+                # Get specialist fees
+                fees = directory.get_fees(specialist.id)
+                if fees:
+                    # Check if any fee option is within the budget
+                    affordable_fees = [fee for fee in fees if fee.fee_amount <= request.max_fee]
+                    if not affordable_fees:
+                        continue  # Skip if all fees exceed max_fee
 
             candidates.append(specialist)
 

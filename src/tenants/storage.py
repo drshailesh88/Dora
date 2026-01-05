@@ -223,6 +223,114 @@ class TenantStorage:
                 ON tenant_audit_logs(created_at)
             """)
 
+            # Query history table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tenant_query_history (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    question TEXT NOT NULL,
+                    answer TEXT NOT NULL,
+                    metadata TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_query_history_tenant
+                ON tenant_query_history(tenant_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_query_history_user
+                ON tenant_query_history(user_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_query_history_created
+                ON tenant_query_history(created_at)
+            """)
+
+            # Usage tracking table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tenant_usage_tracking (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    usage_type TEXT NOT NULL,
+                    tokens_used INTEGER DEFAULT 0,
+                    storage_bytes INTEGER DEFAULT 0,
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_usage_tenant
+                ON tenant_usage_tracking(tenant_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_usage_user
+                ON tenant_usage_tracking(user_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_usage_created
+                ON tenant_usage_tracking(created_at)
+            """)
+
+            # Shared library table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tenant_shared_library (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    user_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    query TEXT NOT NULL,
+                    description TEXT,
+                    tags TEXT DEFAULT '[]',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_library_tenant
+                ON tenant_shared_library(tenant_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_library_tags
+                ON tenant_shared_library(tags)
+            """)
+
+            # Announcements table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS tenant_announcements (
+                    id TEXT PRIMARY KEY,
+                    tenant_id TEXT NOT NULL,
+                    created_by TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    priority TEXT DEFAULT 'normal',
+                    created_at TEXT NOT NULL,
+                    FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_announcements_tenant
+                ON tenant_announcements(tenant_id)
+            """)
+
+            cursor.execute("""
+                CREATE INDEX IF NOT EXISTS idx_announcements_created
+                ON tenant_announcements(created_at)
+            """)
+
     # Tenant CRUD operations
 
     def create_tenant(self, tenant: Tenant) -> Tenant:
@@ -691,6 +799,265 @@ class TenantStorage:
             user_agent=row["user_agent"],
             created_at=datetime.fromisoformat(row["created_at"]),
         )
+
+    # Query history operations
+    def save_query(
+        self,
+        tenant_id: str,
+        user_id: str,
+        question: str,
+        answer: str,
+        metadata: dict,
+    ) -> str:
+        """Save a query to history."""
+        import uuid
+        query_id = str(uuid.uuid4())
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tenant_query_history (
+                    id, tenant_id, user_id, question, answer, metadata, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                query_id, tenant_id, user_id, question, answer,
+                json.dumps(metadata), datetime.utcnow().isoformat()
+            ))
+        return query_id
+
+    def get_user_queries(self, tenant_id: str, user_id: str, limit: int = 50) -> list:
+        """Get query history for a user."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, question, answer, metadata, created_at
+                FROM tenant_query_history
+                WHERE tenant_id = ? AND user_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (tenant_id, user_id, limit))
+            return [{
+                "id": row["id"],
+                "question": row["question"],
+                "answer": row["answer"],
+                "metadata": json.loads(row["metadata"]),
+                "created_at": row["created_at"],
+            } for row in cursor.fetchall()]
+
+    def get_team_queries(self, tenant_id: str, limit: int = 50) -> list:
+        """Get query history for entire team."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, user_id, question, answer, metadata, created_at
+                FROM tenant_query_history
+                WHERE tenant_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (tenant_id, limit))
+            return [{
+                "id": row["id"],
+                "user_id": row["user_id"],
+                "question": row["question"],
+                "answer": row["answer"],
+                "metadata": json.loads(row["metadata"]),
+                "created_at": row["created_at"],
+            } for row in cursor.fetchall()]
+
+    # Usage tracking operations
+    def record_usage(
+        self,
+        tenant_id: str,
+        user_id: str,
+        usage_type: str,
+        tokens_used: int = 0,
+        storage_bytes: int = 0,
+    ):
+        """Record usage for billing/analytics."""
+        import uuid
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tenant_usage_tracking (
+                    id, tenant_id, user_id, usage_type, tokens_used, storage_bytes, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                str(uuid.uuid4()), tenant_id, user_id, usage_type,
+                tokens_used, storage_bytes, datetime.utcnow().isoformat()
+            ))
+
+    def get_usage_stats(
+        self,
+        tenant_id: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> dict:
+        """Get aggregated usage statistics."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_queries,
+                    SUM(tokens_used) as total_tokens,
+                    SUM(storage_bytes) as total_storage,
+                    COUNT(DISTINCT user_id) as unique_users
+                FROM tenant_usage_tracking
+                WHERE tenant_id = ? AND created_at >= ? AND created_at <= ?
+            """, (tenant_id, start_date.isoformat(), end_date.isoformat()))
+            row = cursor.fetchone()
+            return {
+                "total_queries": row["total_queries"] or 0,
+                "total_tokens": row["total_tokens"] or 0,
+                "total_storage_bytes": row["total_storage"] or 0,
+                "unique_users": row["unique_users"] or 0,
+            }
+
+    def get_member_usage_stats(
+        self,
+        tenant_id: str,
+        member_id: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> dict:
+        """Get usage statistics for a specific member."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    COUNT(*) as total_queries,
+                    SUM(tokens_used) as total_tokens,
+                    SUM(storage_bytes) as total_storage
+                FROM tenant_usage_tracking
+                WHERE tenant_id = ? AND user_id = ? AND created_at >= ? AND created_at <= ?
+            """, (tenant_id, member_id, start_date.isoformat(), end_date.isoformat()))
+            row = cursor.fetchone()
+            return {
+                "total_queries": row["total_queries"] or 0,
+                "total_tokens": row["total_tokens"] or 0,
+                "total_storage_bytes": row["total_storage"] or 0,
+            }
+
+    def get_usage_by_day(
+        self,
+        tenant_id: str,
+        start_date: datetime,
+        end_date: datetime,
+    ) -> list:
+        """Get daily usage breakdown."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT
+                    DATE(created_at) as day,
+                    COUNT(*) as queries,
+                    SUM(tokens_used) as tokens
+                FROM tenant_usage_tracking
+                WHERE tenant_id = ? AND created_at >= ? AND created_at <= ?
+                GROUP BY DATE(created_at)
+                ORDER BY day
+            """, (tenant_id, start_date.isoformat(), end_date.isoformat()))
+            return [{
+                "day": row["day"],
+                "queries": row["queries"],
+                "tokens": row["tokens"] or 0,
+            } for row in cursor.fetchall()]
+
+    # Shared library operations
+    def save_library_item(
+        self,
+        tenant_id: str,
+        user_id: str,
+        title: str,
+        query: str,
+        description: str,
+        tags: list,
+    ) -> str:
+        """Save an item to the shared library."""
+        import uuid
+        item_id = str(uuid.uuid4())
+        now = datetime.utcnow().isoformat()
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tenant_shared_library (
+                    id, tenant_id, user_id, title, query, description, tags, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                item_id, tenant_id, user_id, title, query, description,
+                json.dumps(tags), now, now
+            ))
+        return item_id
+
+    def get_library_items(self, tenant_id: str, tag: Optional[str] = None) -> list:
+        """Get shared library items."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            if tag:
+                cursor.execute("""
+                    SELECT id, user_id, title, query, description, tags, created_at
+                    FROM tenant_shared_library
+                    WHERE tenant_id = ? AND tags LIKE ?
+                    ORDER BY created_at DESC
+                """, (tenant_id, f'%"{tag}"%'))
+            else:
+                cursor.execute("""
+                    SELECT id, user_id, title, query, description, tags, created_at
+                    FROM tenant_shared_library
+                    WHERE tenant_id = ?
+                    ORDER BY created_at DESC
+                """, (tenant_id,))
+            return [{
+                "id": row["id"],
+                "user_id": row["user_id"],
+                "title": row["title"],
+                "query": row["query"],
+                "description": row["description"],
+                "tags": json.loads(row["tags"]),
+                "created_at": row["created_at"],
+            } for row in cursor.fetchall()]
+
+    # Announcement operations
+    def create_announcement(
+        self,
+        tenant_id: str,
+        created_by: str,
+        title: str,
+        message: str,
+        priority: str,
+    ) -> str:
+        """Create an announcement."""
+        import uuid
+        announcement_id = str(uuid.uuid4())
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO tenant_announcements (
+                    id, tenant_id, created_by, title, message, priority, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                announcement_id, tenant_id, created_by, title, message,
+                priority, datetime.utcnow().isoformat()
+            ))
+        return announcement_id
+
+    def get_announcements(self, tenant_id: str, limit: int = 10) -> list:
+        """Get recent announcements."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT id, created_by, title, message, priority, created_at
+                FROM tenant_announcements
+                WHERE tenant_id = ?
+                ORDER BY created_at DESC
+                LIMIT ?
+            """, (tenant_id, limit))
+            return [{
+                "id": row["id"],
+                "created_by": row["created_by"],
+                "title": row["title"],
+                "message": row["message"],
+                "priority": row["priority"],
+                "created_at": row["created_at"],
+            } for row in cursor.fetchall()]
 
 
 # Default instance

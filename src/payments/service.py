@@ -301,13 +301,8 @@ class PaymentService:
         if not self.razorpay.verify_payment_signature(order_id, payment_id, signature):
             return PaymentResult(success=False, error="Invalid signature")
 
-        # Get payment by order ID
-        payment = None
-        payments = self.storage.get_user_payments("", limit=100)  # TODO: Better lookup
-        for p in payments:
-            if p.razorpay_order_id == order_id:
-                payment = p
-                break
+        # Get payment by order ID using proper lookup
+        payment = self.storage.get_payment_by_order_id(order_id)
 
         if not payment:
             return PaymentResult(success=False, error="Payment not found")

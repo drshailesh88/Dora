@@ -250,8 +250,8 @@ class PodcastGenerator:
         """
         Extract a summary from the document for script generation.
 
-        For now, returns metadata. In production, would fetch actual content
-        from the vector store or retrieve key chunks.
+        Retrieves actual document content from the vector store using the
+        RAG pipeline to get the most relevant chunks.
 
         Args:
             document: Document to summarize.
@@ -259,8 +259,41 @@ class PodcastGenerator:
         Returns:
             Document summary or content excerpt.
         """
-        # TODO: Implement actual document content retrieval
-        # For now, use metadata
+        try:
+            from src.retrieval import HybridRetriever
+
+            # Initialize retriever
+            retriever = HybridRetriever(use_reranker=False)
+
+            # Query using document title to get relevant chunks
+            results = retriever.search(
+                query=document.title,
+                top_k=5,  # Get top 5 chunks
+                filter_conditions={"doc_id": document.id} if hasattr(document, 'id') else None,
+            )
+
+            # Extract text from results
+            if results and len(results) > 0:
+                content_parts = [
+                    f"Title: {document.title}",
+                    f"Type: {document.doc_type}",
+                    f"Source: {document.source}",
+                    "",
+                    "Content Summary:",
+                ]
+
+                # Add chunk texts
+                for i, result in enumerate(results[:5], 1):
+                    if hasattr(result, 'text'):
+                        content_parts.append(f"\n[Section {i}]")
+                        content_parts.append(result.text[:500])  # Limit chunk size
+
+                return "\n".join(content_parts)
+
+        except Exception as e:
+            logger.warning(f"Could not retrieve document content: {e}, using metadata")
+
+        # Fallback to metadata if retrieval fails
         summary_parts = [
             f"Title: {document.title}",
             f"Type: {document.doc_type}",

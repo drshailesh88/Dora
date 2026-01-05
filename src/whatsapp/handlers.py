@@ -13,6 +13,7 @@ from src.core.pipeline import MedicalQueryPipeline
 from src.drugs import DrugInteractionChecker
 from src.voice import SpeechToText, TextToSpeech
 from src.calculators import get_calculator
+from src.emr.bridge import EMRBridge
 
 from .models import (
     WhatsAppMessage,
@@ -55,9 +56,11 @@ class TextQueryHandler(MessageHandler):
         whatsapp_client: WhatsAppClient,
         templates: MessageTemplates,
         query_pipeline: MedicalQueryPipeline,
+        emr_bridge: Optional[EMRBridge] = None,
     ):
         super().__init__(conversation_manager, whatsapp_client, templates)
         self.query_pipeline = query_pipeline
+        self.emr_bridge = emr_bridge or EMRBridge()
 
     async def handle(self, message: WhatsAppMessage) -> Optional[WhatsAppResponse]:
         """
@@ -83,11 +86,29 @@ class TextQueryHandler(MessageHandler):
         # Increment query count
         user.query_count += 1
 
+        # Get patient context from EMR if user is linked
+        patient_context = None
+        if user.is_linked and user.user_id and self.emr_bridge.is_connected:
+            try:
+                # Check if there's a patient ID stored in user context
+                patient_id = self.conversation_manager.get_context(
+                    whatsapp_id,
+                    "current_patient_id",
+                )
+
+                if patient_id:
+                    patient_context = self.emr_bridge.get_patient_context(patient_id)
+                    if patient_context:
+                        logger.info(f"Retrieved patient context for patient {patient_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to get patient context from EMR: {e}")
+
         try:
-            # Query the medical knowledge base
+            # Query the medical knowledge base with patient context
             answer: MedicalAnswer = await self.query_pipeline.query(
                 question=question,
-                patient_context=None,  # TODO: Get from EMR if linked
+                patient_context=patient_context,
                 top_k=10,
             )
 

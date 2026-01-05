@@ -180,19 +180,25 @@ class EMRSyncManager:
         self._sync_records.append(record)
 
         try:
-            # In a real implementation, this would call EMR API
-            # For now, just simulate
             record.status = SyncStatus.IN_PROGRESS
 
-            # Simulate API call
-            await asyncio.sleep(0.1)
+            # Actual API call to push clinical note to EMR
+            response = await self.emr._request(
+                "POST",
+                f"/patients/{patient_id}/notes",
+                json=note.model_dump(exclude_none=True),
+            )
 
-            # TODO: Actual API call
-            # await self.emr.create_clinical_note(note)
-
-            record.status = SyncStatus.COMPLETED
-            record.completed_at = datetime.utcnow()
-            return True
+            if response:
+                record.status = SyncStatus.COMPLETED
+                record.completed_at = datetime.utcnow()
+                record.data["emr_id"] = response.get("id")
+                return True
+            else:
+                record.status = SyncStatus.FAILED
+                record.error_message = "EMR API returned empty response"
+                self._save_offline_queue()
+                return False
 
         except Exception as e:
             record.status = SyncStatus.FAILED

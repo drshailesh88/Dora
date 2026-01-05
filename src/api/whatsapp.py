@@ -16,6 +16,8 @@ from src.whatsapp import (
     WhatsAppMessage,
     MessageTemplates,
 )
+from src.whatsapp.storage import MessageStore
+from src.whatsapp.models import MessageStatus
 from src.core.pipeline import MedicalQueryPipeline
 from src.drugs import DrugInteractionChecker
 
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/api/whatsapp", tags=["whatsapp"])
 
 # Global service instance
 _whatsapp_service: Optional[WhatsAppService] = None
+_message_store: Optional[MessageStore] = None
 
 
 def get_whatsapp_service(
@@ -41,6 +44,16 @@ def get_whatsapp_service(
         )
 
     return _whatsapp_service
+
+
+def get_message_store() -> MessageStore:
+    """Get or create message store instance"""
+    global _message_store
+
+    if _message_store is None:
+        _message_store = MessageStore()
+
+    return _message_store
 
 
 # Request/Response Models
@@ -145,8 +158,44 @@ async def receive_webhook(
 
         # Process status updates
         for status in result.get("statuses", []):
-            # TODO: Update message status in database
-            logger.info(f"Status update: {status}")
+            try:
+                message_id = status.get("id")
+                status_value = status.get("status")
+                timestamp_str = status.get("timestamp")
+
+                if message_id and status_value:
+                    # Map WhatsApp status to our enum
+                    status_map = {
+                        "sent": MessageStatus.SENT,
+                        "delivered": MessageStatus.DELIVERED,
+                        "read": MessageStatus.READ,
+                        "failed": MessageStatus.FAILED,
+                    }
+
+                    mapped_status = status_map.get(status_value)
+                    if mapped_status:
+                        # Parse timestamp
+                        from datetime import datetime
+                        timestamp = None
+                        if timestamp_str:
+                            try:
+                                timestamp = datetime.fromtimestamp(int(timestamp_str))
+                            except (ValueError, TypeError):
+                                pass
+
+                        # Update status in message store
+                        message_store = get_message_store()
+                        message_store.update_message_status(
+                            message_id,
+                            mapped_status,
+                            timestamp,
+                        )
+                        logger.info(f"Updated message {message_id} status to {status_value}")
+                    else:
+                        logger.warning(f"Unknown status value: {status_value}")
+
+            except Exception as e:
+                logger.error(f"Error processing status update: {e}")
 
         # WhatsApp expects 200 OK immediately
         return {"success": True}
@@ -208,14 +257,18 @@ async def unlink_account(
     """
     service = get_whatsapp_service()
 
-    # Find user's WhatsApp account
-    # This would need a reverse lookup in the conversation manager
-    # For now, return success
-    # TODO: Implement reverse lookup
+    # Find user's WhatsApp account using reverse lookup
+    whatsapp_user = service.conversation_manager.get_user_by_dora_id(current_user.id)
+
+    if not whatsapp_user:
+        raise HTTPException(status_code=404, detail="No linked WhatsApp account found")
+
+    # Unlink the account
+    service.conversation_manager.unlink_user(whatsapp_user.whatsapp_id)
 
     return {
         "success": True,
-        "message": "WhatsApp account unlinked",
+        "message": "WhatsApp account unlinked successfully",
     }
 
 
@@ -228,13 +281,22 @@ async def get_link_status(
     """
     service = get_whatsapp_service()
 
-    # TODO: Implement reverse lookup to find WhatsApp ID by user ID
-    # For now, return not linked
+    # Find linked WhatsApp account using reverse lookup
+    whatsapp_user = service.conversation_manager.get_user_by_dora_id(current_user.id)
 
-    return {
-        "linked": False,
-        "whatsapp_id": None,
-    }
+    if whatsapp_user and whatsapp_user.is_linked:
+        return {
+            "linked": True,
+            "whatsapp_id": whatsapp_user.whatsapp_id,
+            "linked_at": whatsapp_user.linked_at.isoformat() if whatsapp_user.linked_at else None,
+            "language": whatsapp_user.language,
+            "preferred_format": whatsapp_user.preferred_format,
+        }
+    else:
+        return {
+            "linked": False,
+            "whatsapp_id": None,
+        }
 
 
 # Message Management Endpoints
@@ -282,17 +344,33 @@ async def get_message_history(
 ):
     """
     Get message history for current user's linked WhatsApp.
-
-    TODO: Implement message history storage and retrieval.
     """
-    # This would require storing messages in a database
-    # For now, return empty list
+    service = get_whatsapp_service()
+    message_store = get_message_store()
+
+    # Find linked WhatsApp account
+    whatsapp_user = service.conversation_manager.get_user_by_dora_id(current_user.id)
+
+    if not whatsapp_user:
+        raise HTTPException(status_code=404, detail="No linked WhatsApp account found")
+
+    # Get message history
+    messages = message_store.get_message_history(
+        whatsapp_user.whatsapp_id,
+        limit=limit,
+        offset=offset,
+    )
+
+    # Get total count
+    total = message_store.get_message_count(whatsapp_user.whatsapp_id)
 
     return {
         "success": True,
-        "messages": [],
-        "count": 0,
-        "total": 0,
+        "messages": messages,
+        "count": len(messages),
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     }
 
 

@@ -299,13 +299,139 @@ IMPORTANT:
         """Extract and normalize data from EMR.
 
         Args:
-            emr_data: Raw EMR data
+            emr_data: Raw EMR data (from DocAssist EMR models)
 
         Returns:
             Normalized data for documentation
         """
-        # TODO: Integrate with DocAssist EMR schema
-        # For now, return as-is
+        from ..emr.models import (
+            Patient as EMRPatient,
+            Medication as EMRMedication,
+            Diagnosis as EMRDiagnosis,
+            VitalSigns as EMRVitals,
+            LabResult,
+            PatientSummary,
+        )
+
+        # If it's a PatientSummary, extract comprehensive data
+        if isinstance(emr_data, PatientSummary):
+            normalized = {
+                "patient": {
+                    "name": emr_data.patient.name,
+                    "age": emr_data.patient.age,
+                    "gender": emr_data.patient.gender.value,
+                    "mrn": emr_data.patient.mrn,
+                    "contact": emr_data.patient.phone,
+                    "address": emr_data.patient.address,
+                },
+                "medications": [
+                    {
+                        "name": med.drug_name,
+                        "dosage": med.dosage,
+                        "route": med.route,
+                        "frequency": med.frequency,
+                        "duration": med.duration,
+                        "indication": med.indication,
+                    }
+                    for med in emr_data.current_medications
+                ],
+                "allergies": [
+                    allergy.allergen
+                    for allergy in emr_data.allergies
+                ],
+                "diagnoses": [
+                    {
+                        "description": dx.diagnosis_name,
+                        "icd10_code": dx.diagnosis_code,
+                        "is_primary": dx.diagnosis_type == "primary",
+                        "status": "chronic" if dx.is_chronic else "active",
+                    }
+                    for dx in emr_data.active_diagnoses
+                ],
+                "vitals": None,
+                "investigations": [],
+            }
+
+            # Add vitals if available
+            if emr_data.recent_vitals:
+                v = emr_data.recent_vitals
+                normalized["vitals"] = {
+                    "bp_systolic": v.blood_pressure_systolic,
+                    "bp_diastolic": v.blood_pressure_diastolic,
+                    "heart_rate": v.heart_rate,
+                    "respiratory_rate": v.respiratory_rate,
+                    "temperature": v.temperature_c,
+                    "spo2": v.spo2,
+                    "weight": v.weight_kg,
+                    "height": v.height_cm,
+                    "bmi": v.bmi,
+                }
+
+            # Add lab results
+            normalized["investigations"] = [
+                {
+                    "name": lab.test_name,
+                    "result": lab.result,
+                    "unit": lab.unit,
+                    "normal_range": lab.reference_range,
+                    "flag": lab.abnormal_flag,
+                    "date": lab.test_date.isoformat() if lab.test_date else None,
+                }
+                for lab in emr_data.recent_labs
+            ]
+
+            return normalized
+
+        # If it's a raw dict, try to map known fields
+        elif isinstance(emr_data, dict):
+            normalized = {}
+
+            # Map patient data
+            if "patient" in emr_data:
+                p = emr_data["patient"]
+                normalized["patient"] = {
+                    "name": p.get("name"),
+                    "age": p.get("age"),
+                    "gender": p.get("gender"),
+                    "mrn": p.get("mrn") or p.get("uhid"),
+                    "contact": p.get("phone") or p.get("contact"),
+                    "address": p.get("address"),
+                }
+
+            # Map medications
+            if "medications" in emr_data:
+                normalized["medications"] = [
+                    {
+                        "name": m.get("drug_name") or m.get("name"),
+                        "dosage": m.get("dosage"),
+                        "route": m.get("route", "PO"),
+                        "frequency": m.get("frequency"),
+                        "duration": m.get("duration"),
+                    }
+                    for m in emr_data["medications"]
+                ]
+
+            # Map diagnoses
+            if "diagnoses" in emr_data:
+                normalized["diagnoses"] = [
+                    {
+                        "description": d.get("diagnosis_name") or d.get("description"),
+                        "icd10_code": d.get("diagnosis_code") or d.get("icd10_code"),
+                        "is_primary": d.get("diagnosis_type") == "primary",
+                    }
+                    for d in emr_data["diagnoses"]
+                ]
+
+            # Map allergies
+            if "allergies" in emr_data:
+                normalized["allergies"] = [
+                    a.get("allergen") if isinstance(a, dict) else a
+                    for a in emr_data["allergies"]
+                ]
+
+            return normalized
+
+        # Fallback: return as-is
         return emr_data
 
     def extract_vital_signs_regex(self, text: str) -> Optional[Vitals]:

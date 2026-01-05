@@ -88,6 +88,34 @@ class ConversationManager:
         """Get user by WhatsApp ID"""
         return self._users.get(whatsapp_id)
 
+    def get_user_by_dora_id(self, user_id: str) -> Optional[WhatsAppUser]:
+        """
+        Get WhatsApp user by Dora user ID (reverse lookup).
+
+        Args:
+            user_id: Dora user ID
+
+        Returns:
+            WhatsAppUser if found, None otherwise
+        """
+        for user in self._users.values():
+            if user.user_id == user_id and user.is_linked:
+                return user
+        return None
+
+    def get_whatsapp_id_by_user_id(self, user_id: str) -> Optional[str]:
+        """
+        Get WhatsApp ID by Dora user ID (reverse lookup).
+
+        Args:
+            user_id: Dora user ID
+
+        Returns:
+            WhatsApp ID if found, None otherwise
+        """
+        user = self.get_user_by_dora_id(user_id)
+        return user.whatsapp_id if user else None
+
     def link_user(
         self,
         whatsapp_id: str,

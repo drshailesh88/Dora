@@ -4,10 +4,13 @@ Gamification Notifications
 Notifications for achievements, level ups, streaks, and other gamification events.
 """
 
+import logging
 from datetime import datetime
 from typing import Optional
 
 from .models import UserBadge, UserChallenge, UserReward
+
+logger = logging.getLogger(__name__)
 
 
 def send_level_up_notification(
@@ -356,17 +359,118 @@ def _send_in_app_notification(user_id: str, notification: dict, storage):
 
 
 def _send_push_notification(user_id: str, notification: dict, storage):
-    """Send push notification."""
-    # TODO: Integrate with push notification service (FCM, APNS)
-    # For now, just log
-    print(f"[PUSH] {user_id}: {notification['title']}")
+    """Send push notification via FCM/APNS."""
+    try:
+        from src.notifications.push import FirebasePush
+        import asyncio
+
+        # Get user's push tokens
+        user = storage.get_user(user_id)
+        if not user or not hasattr(user, 'preferences'):
+            logger.warning(f"User {user_id} not found or has no preferences")
+            return
+
+        push_tokens = user.preferences.get('push_tokens', {})
+        fcm_tokens = push_tokens.get('fcm', [])
+
+        if not fcm_tokens:
+            logger.debug(f"No FCM tokens for user {user_id}")
+            return
+
+        # Create push notification
+        push_service = FirebasePush()
+
+        # Extract notification data
+        title = notification.get('title', 'Notification')
+        body = notification.get('message', '')
+        data = notification.get('data', {})
+        icon = notification.get('icon')
+
+        # Send to all tokens
+        async def send_notifications():
+            results = await push_service.send_multicast(
+                tokens=fcm_tokens,
+                title=title,
+                body=body,
+                data=data,
+            )
+            success_count = sum(1 for r in results if r.success)
+            logger.info(f"Push notification sent to {success_count}/{len(fcm_tokens)} devices for user {user_id}")
+
+        # Schedule async task
+        asyncio.create_task(send_notifications())
+
+    except Exception as e:
+        logger.error(f"Failed to send push notification: {e}")
+        # Fallback to console log for debugging
+        print(f"[PUSH] {user_id}: {notification['title']}")
 
 
 def _send_email_notification(user_id: str, notification: dict, storage):
     """Send email notification."""
-    # TODO: Integrate with email service
-    # For now, just log
-    print(f"[EMAIL] {user_id}: {notification['title']}")
+    try:
+        from src.notifications.email import SendGridEmail
+        import asyncio
+
+        # Get user email
+        user = storage.get_user(user_id)
+        if not user:
+            logger.warning(f"User {user_id} not found")
+            return
+
+        # Create email content
+        email_service = SendGridEmail()
+        title = notification.get('title', 'Notification')
+        message = notification.get('message', '')
+
+        # Build simple HTML email
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #0066CC; color: white; padding: 20px; text-align: center; }}
+        .content {{ padding: 30px; background-color: #f9f9f9; }}
+        .icon {{ font-size: 48px; text-align: center; margin: 20px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>DocAssist Notification</h1>
+        </div>
+        <div class="content">
+            <div class="icon">{notification.get('icon', '🎉')}</div>
+            <h2>{title}</h2>
+            <p>{message}</p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+        # Send email asynchronously
+        async def send_email():
+            result = await email_service.send(
+                to=user.email,
+                subject=title,
+                body=message,
+                html_body=html_body,
+            )
+            if result.success:
+                logger.info(f"Email notification sent to {user.email}")
+            else:
+                logger.error(f"Failed to send email notification: {result.error}")
+
+        # Schedule async task
+        asyncio.create_task(send_email())
+
+    except Exception as e:
+        logger.error(f"Failed to send email notification: {e}")
+        # Fallback to console log for debugging
+        print(f"[EMAIL] {user_id}: {notification['title']}")
 
 
 def get_celebration_animation(celebration_type: str) -> dict:

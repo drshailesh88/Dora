@@ -237,9 +237,102 @@ class ProtocolLibrary:
             return json.dumps(protocol.to_dict(), indent=2)
 
         elif format == "pdf":
-            # TODO: Implement PDF export using reportlab or similar
-            # For now, return markdown
-            return protocol.content
+            # PDF export using reportlab
+            from io import BytesIO
+            try:
+                from reportlab.lib import colors
+                from reportlab.lib.pagesizes import letter
+                from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+                from reportlab.lib.units import inch
+                from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, PageBreak
+                from reportlab.platypus import Table, TableStyle
+            except ImportError:
+                # Fallback to markdown if reportlab not available
+                return protocol.content
+
+            # Create PDF buffer
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            styles = getSampleStyleSheet()
+            story = []
+
+            # Title
+            title_style = ParagraphStyle(
+                'CustomTitle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                textColor=colors.HexColor('#2C3E50'),
+                spaceAfter=12,
+            )
+            story.append(Paragraph(protocol.title, title_style))
+            story.append(Spacer(1, 0.2 * inch))
+
+            # Metadata table
+            metadata = [
+                ['Category:', protocol.category.value.title()],
+                ['Status:', protocol.status.value.title()],
+                ['Version:', protocol.version_number],
+                ['Created:', protocol.created_at.strftime('%Y-%m-%d')],
+                ['Last Updated:', protocol.updated_at.strftime('%Y-%m-%d')],
+            ]
+
+            if protocol.evidence_grade:
+                metadata.append(['Evidence Grade:', protocol.evidence_grade])
+
+            t = Table(metadata, colWidths=[2*inch, 4*inch])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ECF0F1')),
+                ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 10),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+                ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ]))
+            story.append(t)
+            story.append(Spacer(1, 0.3 * inch))
+
+            # Description
+            story.append(Paragraph('<b>Description:</b>', styles['Heading2']))
+            story.append(Spacer(1, 0.1 * inch))
+            story.append(Paragraph(protocol.description, styles['Normal']))
+            story.append(Spacer(1, 0.2 * inch))
+
+            # Tags
+            if protocol.tags:
+                story.append(Paragraph('<b>Tags:</b>', styles['Heading2']))
+                story.append(Spacer(1, 0.1 * inch))
+                tags_text = ', '.join(protocol.tags)
+                story.append(Paragraph(tags_text, styles['Normal']))
+                story.append(Spacer(1, 0.2 * inch))
+
+            # Content
+            story.append(Paragraph('<b>Protocol Content:</b>', styles['Heading2']))
+            story.append(Spacer(1, 0.1 * inch))
+
+            # Split content by lines and add as paragraphs
+            for line in protocol.content.split('\n'):
+                if line.strip():
+                    # Handle markdown-style headers
+                    if line.startswith('# '):
+                        story.append(Paragraph(line[2:], styles['Heading2']))
+                    elif line.startswith('## '):
+                        story.append(Paragraph(line[3:], styles['Heading3']))
+                    elif line.startswith('### '):
+                        story.append(Paragraph(line[4:], styles['Heading4']))
+                    else:
+                        story.append(Paragraph(line, styles['Normal']))
+                else:
+                    story.append(Spacer(1, 0.1 * inch))
+
+            # Build PDF
+            doc.build(story)
+
+            # Return PDF bytes as base64 string for storage/transmission
+            import base64
+            pdf_bytes = buffer.getvalue()
+            buffer.close()
+            return base64.b64encode(pdf_bytes).decode('utf-8')
 
         return None
 

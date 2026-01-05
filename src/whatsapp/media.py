@@ -248,6 +248,7 @@ class MediaHandler:
     async def process_image(
         self,
         media_id: str,
+        analysis_type: str = "auto",
     ) -> Optional[dict]:
         """
         Download and process an image.
@@ -259,9 +260,10 @@ class MediaHandler:
 
         Args:
             media_id: WhatsApp media ID
+            analysis_type: Type of analysis (auto, ocr, vision)
 
         Returns:
-            Analysis results
+            Analysis results with text extraction and/or visual description
         """
         try:
             # Download image
@@ -274,20 +276,216 @@ class MediaHandler:
             if not media or not media.local_path:
                 return None
 
-            # TODO: Implement image analysis
-            # This would use a vision model or OCR
+            logger.info(f"Processing image: {media.local_path}")
 
-            logger.info(f"Image downloaded: {media.local_path}")
-
-            return {
+            # Perform analysis based on type
+            analysis_results = {
                 "media_id": media_id,
                 "path": media.local_path,
                 "size": media.file_size,
-                "analysis": "Image analysis not yet implemented",
+                "analysis_type": analysis_type,
             }
+
+            # Try OCR first (useful for lab reports, prescriptions)
+            if analysis_type in ["auto", "ocr"]:
+                ocr_text = await self._extract_text_ocr(media.local_path)
+                if ocr_text:
+                    analysis_results["ocr_text"] = ocr_text
+                    analysis_results["has_text"] = True
+                    logger.info(f"Extracted {len(ocr_text)} characters via OCR")
+
+            # Try vision model analysis (if available and requested)
+            if analysis_type in ["auto", "vision"]:
+                vision_analysis = await self._analyze_with_vision_model(media.local_path)
+                if vision_analysis:
+                    analysis_results["vision_analysis"] = vision_analysis
+                    logger.info("Completed vision model analysis")
+
+            # If no analysis was successful
+            if "ocr_text" not in analysis_results and "vision_analysis" not in analysis_results:
+                analysis_results["analysis"] = "Image downloaded but analysis not available. Please describe what you'd like to know about this image."
+
+            return analysis_results
 
         except Exception as e:
             logger.error(f"Error processing image {media_id}: {e}")
+            return None
+
+    async def _extract_text_ocr(self, image_path: str) -> Optional[str]:
+        """
+        Extract text from image using OCR.
+
+        Uses pytesseract if available, falls back to easyocr.
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Extracted text or None
+        """
+        try:
+            # Try pytesseract first (faster, more accurate for English)
+            try:
+                import pytesseract
+                from PIL import Image
+
+                image = Image.open(image_path)
+                text = pytesseract.image_to_string(image)
+
+                # Clean up text
+                text = text.strip()
+
+                if text:
+                    return text
+
+            except ImportError:
+                logger.debug("pytesseract not available, trying easyocr")
+            except Exception as e:
+                logger.warning(f"pytesseract failed: {e}, trying easyocr")
+
+            # Try easyocr as fallback (slower but works without tesseract installation)
+            try:
+                import easyocr
+
+                reader = easyocr.Reader(['en'])
+                result = reader.readtext(image_path, detail=0)
+
+                text = "\n".join(result)
+                if text:
+                    return text
+
+            except ImportError:
+                logger.warning("Neither pytesseract nor easyocr available for OCR")
+            except Exception as e:
+                logger.error(f"easyocr failed: {e}")
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error extracting text from image: {e}")
+            return None
+
+    async def _analyze_with_vision_model(self, image_path: str) -> Optional[dict]:
+        """
+        Analyze image using a vision model.
+
+        Uses OpenAI GPT-4 Vision or Anthropic Claude Vision if available.
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Vision analysis results or None
+        """
+        try:
+            from src.core.config import settings
+            import base64
+
+            # Read and encode image
+            with open(image_path, "rb") as f:
+                image_data = base64.b64encode(f.read()).decode("utf-8")
+
+            # Determine image MIME type
+            from pathlib import Path
+            ext = Path(image_path).suffix.lower()
+            mime_map = {
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".png": "image/png",
+                ".webp": "image/webp",
+            }
+            mime_type = mime_map.get(ext, "image/jpeg")
+
+            # Try Anthropic Claude Vision (preferred for medical images)
+            if settings.anthropic_api_key:
+                try:
+                    import anthropic
+
+                    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+                    message = client.messages.create(
+                        model="claude-3-5-sonnet-20241022",
+                        max_tokens=1024,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "image",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": mime_type,
+                                            "data": image_data,
+                                        },
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "This is a medical image. Please analyze it and describe: 1) What type of medical image/document this is, 2) Key findings or observations, 3) Any notable abnormalities or important details. Keep the response concise and clinical.",
+                                    },
+                                ],
+                            }
+                        ],
+                    )
+
+                    analysis_text = message.content[0].text
+
+                    return {
+                        "description": analysis_text,
+                        "model": "claude-3.5-sonnet",
+                        "confidence": "vision_model",
+                    }
+
+                except ImportError:
+                    logger.debug("anthropic library not available")
+                except Exception as e:
+                    logger.warning(f"Claude Vision failed: {e}")
+
+            # Try OpenAI GPT-4 Vision
+            if settings.openai_api_key:
+                try:
+                    import openai
+
+                    client = openai.OpenAI(api_key=settings.openai_api_key)
+
+                    response = client.chat.completions.create(
+                        model="gpt-4o",
+                        max_tokens=1024,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {
+                                            "url": f"data:{mime_type};base64,{image_data}",
+                                        },
+                                    },
+                                    {
+                                        "type": "text",
+                                        "text": "This is a medical image. Please analyze it and describe: 1) What type of medical image/document this is, 2) Key findings or observations, 3) Any notable abnormalities or important details. Keep the response concise and clinical.",
+                                    },
+                                ],
+                            }
+                        ],
+                    )
+
+                    analysis_text = response.choices[0].message.content
+
+                    return {
+                        "description": analysis_text,
+                        "model": "gpt-4o",
+                        "confidence": "vision_model",
+                    }
+
+                except ImportError:
+                    logger.debug("openai library not available")
+                except Exception as e:
+                    logger.error(f"OpenAI Vision failed: {e}")
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error analyzing image with vision model: {e}")
             return None
 
     async def generate_pdf_handout(

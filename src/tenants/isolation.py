@@ -235,13 +235,14 @@ class QueryHistory(TenantScopedQuery):
         tenant_id = self._get_tenant_id()
         user_id = get_current_user_id()
 
-        # In production, this would save to tenant_query_history table
-        # For now, this is a placeholder
-        import uuid
-        query_id = str(uuid.uuid4())
-
-        # TODO: Implement actual storage
-        # self.storage.save_query(tenant_id, user_id, question, answer, metadata)
+        # Save query to tenant_query_history table
+        query_id = self.storage.save_query(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            question=question,
+            answer=answer,
+            metadata=metadata or {}
+        )
 
         return query_id
 
@@ -254,10 +255,8 @@ class QueryHistory(TenantScopedQuery):
         tenant_id = self._get_tenant_id()
         user_id = get_current_user_id()
 
-        # TODO: Implement actual retrieval
-        # return self.storage.get_queries(tenant_id, user_id, limit)
-
-        return []
+        # Retrieve queries from storage
+        return self.storage.get_user_queries(tenant_id, user_id, limit)
 
     def get_team_history(self, limit: int = 50) -> list:
         """
@@ -272,10 +271,8 @@ class QueryHistory(TenantScopedQuery):
 
         tenant_id = self._get_tenant_id()
 
-        # TODO: Implement actual retrieval
-        # return self.storage.get_team_queries(tenant_id, limit)
-
-        return []
+        # Retrieve team queries from storage
+        return self.storage.get_team_queries(tenant_id, limit)
 
 
 class UsageTracking(TenantScopedQuery):
@@ -290,8 +287,13 @@ class UsageTracking(TenantScopedQuery):
         tenant_id = self._get_tenant_id()
         user_id = get_current_user_id()
 
-        # TODO: Implement usage tracking storage
-        # self.storage.record_usage(tenant_id, user_id, "query", tokens_used)
+        # Record usage in tracking table
+        self.storage.record_usage(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            usage_type="query",
+            tokens_used=tokens_used
+        )
 
     def get_tenant_usage(self, start_date: datetime, end_date: datetime) -> Dict[str, Any]:
         """
@@ -305,11 +307,15 @@ class UsageTracking(TenantScopedQuery):
 
         tenant_id = self._get_tenant_id()
 
-        # TODO: Implement usage aggregation
+        # Get usage stats from storage
+        stats = self.storage.get_usage_stats(tenant_id, start_date, end_date)
+
         return {
             "tenant_id": tenant_id,
-            "total_queries": 0,
-            "total_users": 0,
+            "total_queries": stats["total_queries"],
+            "total_users": stats["unique_users"],
+            "total_tokens": stats["total_tokens"],
+            "total_storage_bytes": stats["total_storage_bytes"],
             "period": {
                 "start": start_date.isoformat(),
                 "end": end_date.isoformat(),
@@ -334,10 +340,17 @@ class UsageTracking(TenantScopedQuery):
         if not member or member.tenant_id != tenant_id:
             raise TenantIsolationError("Member not found in current tenant")
 
-        # TODO: Implement member usage aggregation
+        # Get member usage stats from storage
+        stats = self.storage.get_member_usage_stats(
+            tenant_id, member.user_id, start_date, end_date
+        )
+
         return {
             "member_id": member_id,
-            "queries": 0,
+            "user_id": member.user_id,
+            "queries": stats["total_queries"],
+            "tokens": stats["total_tokens"],
+            "storage_bytes": stats["total_storage_bytes"],
             "period": {
                 "start": start_date.isoformat(),
                 "end": end_date.isoformat(),
@@ -368,9 +381,17 @@ class SharedLibrary(TenantScopedQuery):
         tenant_id = self._get_tenant_id()
         user_id = get_current_user_id()
 
-        # TODO: Implement library storage
-        import uuid
-        return str(uuid.uuid4())
+        # Save to shared library
+        item_id = self.storage.save_library_item(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            title=title,
+            query=query,
+            description=description or "",
+            tags=tags or []
+        )
+
+        return item_id
 
     def get_library_items(self, tag: Optional[str] = None) -> list:
         """
@@ -380,8 +401,8 @@ class SharedLibrary(TenantScopedQuery):
         """
         tenant_id = self._get_tenant_id()
 
-        # TODO: Implement library retrieval
-        return []
+        # Retrieve library items from storage
+        return self.storage.get_library_items(tenant_id, tag)
 
 
 def enforce_tenant_isolation():

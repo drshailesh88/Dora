@@ -295,6 +295,19 @@ class PaymentStorage:
                 return self._row_to_payment(row)
         return None
 
+    def get_payment_by_order_id(self, order_id: str) -> Optional[Payment]:
+        """Get payment by Razorpay order ID."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM payments WHERE razorpay_order_id = ?",
+                (order_id,)
+            )
+            row = cursor.fetchone()
+            if row:
+                return self._row_to_payment(row)
+        return None
+
     def get_user_payments(
         self,
         user_id: str,

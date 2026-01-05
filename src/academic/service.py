@@ -441,11 +441,19 @@ class AcademicService:
             papers = await self.search_literature(query, max_results=max_pubmed_results)
             results["pubmed_results"] = papers
 
-        # TODO: Integrate with Dora's RAG pipeline
-        # from src.core.pipeline import MedicalQueryPipeline
-        # pipeline = MedicalQueryPipeline()
-        # answer = await pipeline.query(query)
-        # results["rag_results"] = answer
+        # Integrate with Dora's RAG pipeline
+        from src.core.pipeline import MedicalQueryPipeline
+        pipeline = MedicalQueryPipeline()
+        answer = await pipeline.query(query)
+        results["rag_answer"] = answer.answer
+        results["rag_sources"] = [
+            {
+                "text": result.chunk.text,
+                "source": result.chunk.metadata.get("source", "Unknown"),
+                "score": result.score,
+            }
+            for result in answer.sources
+        ]
 
         return results
 
@@ -465,11 +473,30 @@ class AcademicService:
             topic: Topic of interest
             papers: New papers found
         """
-        # TODO: Integrate with notification service
-        # from src.notifications import get_notification_service
-        # notification_service = get_notification_service()
-        # await notification_service.send_new_papers_alert(user_id, topic, papers)
-        pass
+        from src.notifications.service import get_notification_service
+        from src.notifications.models import NotificationType, NotificationChannel
+
+        notification_service = get_notification_service()
+
+        # Format papers for notification
+        paper_list = "\n".join([
+            f"• {paper.title} ({paper.journal}, {paper.year})"
+            for paper in papers[:5]  # Limit to 5 papers
+        ])
+
+        # Send notification (assuming user preferences are available)
+        # In production, you'd fetch user contact info from auth service
+        await notification_service.send(
+            user_id=user_id,
+            notification_type=NotificationType.SYSTEM_UPDATE,
+            channel=NotificationChannel.EMAIL,
+            recipient=f"user_{user_id}@example.com",  # Replace with actual email lookup
+            context={
+                "topic": topic,
+                "count": len(papers),
+                "papers": paper_list,
+            },
+        )
 
     async def close(self) -> None:
         """Close all clients."""

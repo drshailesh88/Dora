@@ -224,6 +224,9 @@ class EMRBridge:
         if medications:
             summary_parts.append(f"On: {', '.join(medications[:5])}")
 
+        # Get allergies from EMR if allergies table exists
+        allergies = self.get_patient_allergies(patient_id)
+
         return PatientContext(
             patient_id=patient_id,
             name=patient["name"],
@@ -231,10 +234,67 @@ class EMRBridge:
             gender=patient["gender"],
             active_diagnoses=diagnoses,
             current_medications=medications,
-            allergies=[],  # TODO: Add allergies table to EMR
+            allergies=allergies,
             recent_investigations=investigations,
             summary=" | ".join(summary_parts),
         )
+
+    def get_patient_allergies(self, patient_id: int) -> list[str]:
+        """
+        Get patient's allergies from EMR.
+
+        Args:
+            patient_id: Patient ID.
+
+        Returns:
+            List of allergen names.
+        """
+        conn = self._get_connection()
+
+        try:
+            # Try to fetch from allergies table if it exists
+            cursor = conn.execute(
+                """
+                SELECT allergen FROM allergies
+                WHERE patient_id = ?
+                ORDER BY severity DESC
+                """,
+                (patient_id,),
+            )
+            allergies = [row["allergen"] for row in cursor.fetchall()]
+            return allergies
+        except Exception:
+            # Allergies table might not exist in older EMR schemas
+            # Fall back to checking visits notes for allergies
+            try:
+                visits = self.get_patient_visits(patient_id, limit=5)
+                allergies_set = set()
+
+                for visit in visits:
+                    notes = visit.get("notes", "")
+                    # Simple pattern matching for allergies in notes
+                    if "allerg" in notes.lower():
+                        import re
+
+                        # Look for "Allergies: X, Y, Z" pattern
+                        match = re.search(
+                            r"allerg(?:y|ies):\s*([^\n]+)", notes, re.IGNORECASE
+                        )
+                        if match:
+                            allergy_text = match.group(1)
+                            for allergy in allergy_text.split(","):
+                                allergy = allergy.strip()
+                                if allergy and allergy.lower() not in [
+                                    "none",
+                                    "nkda",
+                                    "nil",
+                                ]:
+                                    allergies_set.add(allergy)
+
+                return list(allergies_set)
+            except Exception:
+                # If all else fails, return empty list
+                return []
 
     def close(self):
         """Close database connection."""

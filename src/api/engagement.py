@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from src.api.auth import get_current_user
+from src.auth import UserRole, RoleChecker
 from src.engagement import (
     get_engagement_service,
     DailyBriefing,
@@ -484,18 +485,19 @@ async def track_session(
 
 @router.get("/stats/platform", response_model=EngagementStatistics)
 async def get_platform_statistics(
-    current_user: dict = Depends(get_current_user),
+    admin_user = Depends(RoleChecker(UserRole.ADMIN)),
 ) -> EngagementStatistics:
     """
     Get platform-wide engagement statistics.
 
-    Note: In production, this should be admin-only.
+    Admin-only endpoint for viewing aggregate platform metrics.
 
     Returns:
         Platform statistics
-    """
-    # TODO: Check if user is admin
 
+    Raises:
+        HTTPException: 403 if user is not an admin
+    """
     service = get_engagement_service()
     stats = service.get_platform_statistics()
 

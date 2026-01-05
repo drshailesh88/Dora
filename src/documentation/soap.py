@@ -124,9 +124,80 @@ class SOAPNoteGenerator:
         Returns:
             SOAP note pre-filled with EMR data
         """
-        # TODO: Integrate with DocAssist EMR
-        # For now, return a template
-        raise NotImplementedError("EMR integration pending")
+        from ..emr.client import EMRClient, EMRConfig
+        from .extractor import MedicalInformationExtractor
+
+        try:
+            # Initialize EMR client
+            emr_client = EMRClient(config=EMRConfig())
+
+            async with emr_client:
+                # Get patient summary from EMR
+                patient_summary = await emr_client.get_patient_summary(int(patient_id))
+
+                if not patient_summary:
+                    raise ValueError(f"Patient {patient_id} not found in EMR")
+
+                # Extract and normalize EMR data
+                extractor = MedicalInformationExtractor()
+                normalized_data = await extractor.extract_from_emr_data(patient_summary)
+
+                # Build patient object
+                patient_data = normalized_data.get("patient", {})
+                patient = Patient(
+                    id=str(patient_id),
+                    name=patient_data.get("name", "Unknown"),
+                    age=patient_data.get("age", 0),
+                    gender=patient_data.get("gender", "Unknown"),
+                    mrn=patient_data.get("mrn"),
+                    contact=patient_data.get("contact"),
+                    address=patient_data.get("address"),
+                )
+
+                # Pre-fill SOAP note with EMR data
+                soap_note = SOAPNote(
+                    patient=patient,
+                    provider=provider,
+                    chief_complaint="",  # To be filled by provider
+                    history_present_illness="",  # To be filled by provider
+                    # Pre-fill from EMR
+                    medications=self._extract_medications(normalized_data.get("medications", [])),
+                    allergies=normalized_data.get("allergies", []),
+                    past_medical_history=self._build_pmh_from_diagnoses(
+                        normalized_data.get("diagnoses", [])
+                    ),
+                    vitals=self._extract_vitals(normalized_data.get("vitals", {})),
+                    # Initialize empty assessment and plan
+                    diagnoses=[],
+                    plan_medications=[],
+                )
+
+                return soap_note
+
+        except Exception as e:
+            # Fallback: return minimal template if EMR fetch fails
+            return SOAPNote(
+                patient=Patient(
+                    id=patient_id,
+                    name="Unknown",
+                    age=0,
+                    gender="Unknown",
+                ),
+                provider=provider,
+                chief_complaint="",
+                history_present_illness="",
+            )
+
+    def _build_pmh_from_diagnoses(self, diagnoses: list[dict]) -> str:
+        """Build past medical history from diagnoses."""
+        if not diagnoses:
+            return None
+
+        chronic = [d for d in diagnoses if d.get("status") == "chronic"]
+        if chronic:
+            dx_list = [d["description"] for d in chronic]
+            return ", ".join(dx_list)
+        return None
 
     def _build_extraction_prompt(self, text: str) -> str:
         """Build prompt for extracting SOAP components from text.

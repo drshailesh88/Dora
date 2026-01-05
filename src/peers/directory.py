@@ -333,11 +333,33 @@ class SpecialistDirectory:
 
         now = datetime.utcnow()
         day_of_week = now.weekday()
+        current_time = now.time()
 
         for slot in availability_slots:
             if slot.day_of_week == day_of_week and slot.is_available():
-                # TODO: Check time range
-                return True
+                # Check if current time falls within the availability slot
+                if slot.start_time and slot.end_time:
+                    # Convert time strings to time objects if needed
+                    from datetime import time as time_class
+
+                    if isinstance(slot.start_time, str):
+                        start_parts = slot.start_time.split(':')
+                        slot_start = time_class(int(start_parts[0]), int(start_parts[1]))
+                    else:
+                        slot_start = slot.start_time
+
+                    if isinstance(slot.end_time, str):
+                        end_parts = slot.end_time.split(':')
+                        slot_end = time_class(int(end_parts[0]), int(end_parts[1]))
+                    else:
+                        slot_end = slot.end_time
+
+                    # Check if current time is within the slot range
+                    if slot_start <= current_time <= slot_end:
+                        return True
+                else:
+                    # No time range specified, assume available all day
+                    return True
 
         return False
 

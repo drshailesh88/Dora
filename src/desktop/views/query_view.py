@@ -210,9 +210,59 @@ class QueryView(ft.UserControl):
             self.answers_list.update()
 
     def _handle_voice(self):
-        """Handle voice input."""
-        # TODO: Integrate with voice agent
-        pass
+        """
+        Handle voice input.
+
+        Opens voice recording interface and processes the audio through
+        the voice service for transcription and query processing.
+        """
+        try:
+            from src.voice.service import VoiceService, VoiceServiceMode
+            import tempfile
+            import soundfile as sf
+
+            # Initialize voice service
+            voice_service = VoiceService(
+                mode=VoiceServiceMode.PUSH_TO_TALK,
+                enable_ambient=False,
+            )
+
+            # TODO: Implement actual audio recording from microphone
+            # For now, this is a placeholder that would need:
+            # 1. Audio recording from microphone using sounddevice or similar
+            # 2. Real-time audio streaming to voice service
+            # 3. Display of transcription in progress
+            # 4. Automatic submission when user stops speaking
+
+            # Placeholder message
+            import flet as ft
+            if hasattr(self.page, 'snack_bar'):
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text("Voice input: Press and hold to record (feature in development)"),
+                    open=True,
+                )
+                self.page.update()
+
+        except ImportError:
+            # Voice service not available
+            import flet as ft
+            if hasattr(self.page, 'snack_bar'):
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text("Voice service not available. Please install voice dependencies."),
+                    bgcolor=ft.colors.ERROR,
+                    open=True,
+                )
+                self.page.update()
+        except Exception as e:
+            # Handle other errors
+            import flet as ft
+            if hasattr(self.page, 'snack_bar'):
+                self.page.snack_bar = ft.SnackBar(
+                    content=ft.Text(f"Voice input error: {str(e)}"),
+                    bgcolor=ft.colors.ERROR,
+                    open=True,
+                )
+                self.page.update()
 
     def _on_state_change(self, state):
         """Handle state changes."""

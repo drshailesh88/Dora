@@ -230,9 +230,24 @@ class MainView(ft.UserControl):
     def _rerun_query(self, question: str):
         """Re-run a query from history."""
         self._navigate("query")
-        # Set the question in the query input
+        # Set the question in the query input and submit
         query_view = self.views["query"]
-        # TODO: Set question in query input
+
+        # Access the QueryInput component's text field
+        # The QueryView has a QueryInput component built in build()
+        # We need to find it in the children and set its value
+        if hasattr(query_view, 'build'):
+            # Trigger a rebuild to get the query input
+            view_content = query_view.build()
+            # Find the QueryInput in the column controls (it's the last one)
+            if hasattr(view_content, 'controls') and len(view_content.controls) > 0:
+                query_input = view_content.controls[-1]  # Last control is QueryInput
+                if hasattr(query_input, 'text_field') and query_input.text_field:
+                    query_input.text_field.value = question
+                    query_input.text_field.update()
+                    # Auto-submit the query
+                    import asyncio
+                    asyncio.create_task(query_view._handle_query(question))
 
     def _on_state_change(self, state):
         """Handle state changes."""

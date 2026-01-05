@@ -12,6 +12,7 @@ Central service for all tenant operations including:
 from datetime import datetime, timedelta
 from typing import Optional, List, Tuple
 import secrets
+import os
 
 from .models import (
     Tenant, Team, TenantMember, TenantInvitation, TenantAuditLog,
@@ -174,8 +175,29 @@ class TenantService:
         if tenant.owner_id != actor_id:
             return False, "Only owner can delete organization"
 
-        # TODO: Cancel subscription
-        # TODO: Export data for user
+        # Cancel subscription if active
+        try:
+            self.billing.cancel_subscription(tenant_id, immediate=True)
+        except Exception as e:
+            # Log but don't block deletion
+            print(f"Warning: Failed to cancel subscription: {e}")
+
+        # Export data for user (for compliance/backup)
+        try:
+            from .admin import TenantAdminService
+            admin_service = TenantAdminService(self.storage, self, self.billing)
+            export_data = admin_service.export_tenant_data(tenant_id, actor_id)
+            # Save export data to file
+            import json
+            from pathlib import Path
+            export_dir = Path.home() / ".dora" / "exports"
+            export_dir.mkdir(parents=True, exist_ok=True)
+            export_file = export_dir / f"{tenant_id}_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(export_file, 'w') as f:
+                json.dump(export_data, f, indent=2)
+            print(f"Data exported to: {export_file}")
+        except Exception as e:
+            print(f"Warning: Failed to export data: {e}")
 
         # Delete tenant (cascade deletes members, teams, etc)
         self.storage.delete_tenant(tenant_id)
@@ -450,7 +472,8 @@ class TenantService:
 
         self.storage.create_invitation(invitation)
 
-        # TODO: Send invitation email
+        # Send invitation email
+        self._send_invitation_email(tenant, invitation)
 
         # Log action
         self._log_action(
@@ -571,6 +594,54 @@ class TenantService:
     ) -> List[TenantAuditLog]:
         """Get audit logs for an organization."""
         return self.storage.get_audit_logs(tenant_id, limit, offset)
+
+    def _send_invitation_email(self, tenant: Tenant, invitation: TenantInvitation):
+        """Send invitation email to invitee."""
+        try:
+            # Import notification service
+            import asyncio
+            from ..notifications.service import get_notification_service
+            from ..notifications.models import NotificationType, NotificationChannel
+
+            notification_service = get_notification_service()
+
+            # Build invitation URL
+            base_url = os.environ.get("APP_BASE_URL", "https://docassist.in")
+            invitation_url = f"{base_url}/invitations/accept?token={invitation.token}"
+
+            # Send email asynchronously
+            async def send():
+                await notification_service.send(
+                    user_id=invitation.invited_by,
+                    notification_type=NotificationType.CUSTOM,
+                    channel=NotificationChannel.EMAIL,
+                    recipient=invitation.email,
+                    context={
+                        "tenant_name": tenant.display_name or tenant.name,
+                        "role": invitation.role.value,
+                        "invitation_url": invitation_url,
+                        "expires_days": (invitation.expires_at - datetime.utcnow()).days,
+                        "personal_message": invitation.message or "",
+                    },
+                    priority="NORMAL",
+                )
+
+            # Run async function
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # If loop is already running, create a task
+                    asyncio.create_task(send())
+                else:
+                    # If loop is not running, run until complete
+                    loop.run_until_complete(send())
+            except RuntimeError:
+                # If no event loop, create new one
+                asyncio.run(send())
+
+        except Exception as e:
+            # Log error but don't fail invitation creation
+            print(f"Warning: Failed to send invitation email: {e}")
 
 
 # Default instance

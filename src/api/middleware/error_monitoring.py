@@ -217,8 +217,32 @@ class AlertManager:
 
     async def _notify_email(self, alert_data: Dict[str, Any]):
         """Send alert via email."""
-        # TODO: Implement email alerting
-        pass
+        email_recipients = os.getenv("ALERT_EMAIL_RECIPIENTS")
+        if not email_recipients:
+            logger.debug("No alert email recipients configured")
+            return
+
+        try:
+            from src.notifications.email_service import get_email_service
+
+            email_service = get_email_service()
+            recipients = [r.strip() for r in email_recipients.split(",")]
+
+            for recipient in recipients:
+                await email_service.send_alert_email(
+                    to=recipient,
+                    alert_title=alert_data["title"],
+                    alert_message=alert_data["message"],
+                    alert_data={
+                        "count": alert_data["count"],
+                        "path": alert_data["path"],
+                        "fingerprint": alert_data["fingerprint"],
+                        "timestamp": alert_data["timestamp"],
+                    },
+                )
+            logger.info(f"Alert email sent to {len(recipients)} recipient(s)")
+        except Exception as e:
+            logger.error(f"Failed to send alert email: {e}")
 
 
 class ErrorMonitoringMiddleware(BaseHTTPMiddleware):
@@ -389,16 +413,50 @@ def setup_error_monitoring(app):
 
     # Register default health checks
     async def check_db():
-        # TODO: Implement actual DB check
-        return True
+        """Check SQLite database connectivity."""
+        try:
+            from src.auth.storage import get_auth_storage
+            storage = get_auth_storage()
+            # Try a simple query
+            with storage._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                return result is not None
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            return False
 
     async def check_redis():
-        # TODO: Implement actual Redis check
-        return True
+        """Check Redis connectivity."""
+        try:
+            from src.core.redis_client import get_redis_client
+            redis_client = get_redis_client()
+            # Use ping to check connection
+            return redis_client.ping()
+        except Exception as e:
+            logger.error(f"Redis health check failed: {e}")
+            return False
 
     async def check_vector_store():
-        # TODO: Implement actual vector store check
-        return True
+        """Check Qdrant vector store connectivity."""
+        try:
+            from src.retrieval.dense import DenseRetriever
+            from src.core.config import settings
+
+            # Try to connect to Qdrant
+            from qdrant_client import QdrantClient
+            client = QdrantClient(
+                url=settings.qdrant_url,
+                api_key=settings.qdrant_api_key,
+                timeout=5.0,
+            )
+            # Check if we can list collections
+            collections = client.get_collections()
+            return True
+        except Exception as e:
+            logger.error(f"Vector store health check failed: {e}")
+            return False
 
     health_service.register_check("database", check_db)
     health_service.register_check("redis", check_redis)

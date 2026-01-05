@@ -414,17 +414,64 @@ class DocumentationService:
         Returns:
             EMR response
         """
+        from ..emr.client import EMRClient, EMRConfig
+        from ..emr.models import ClinicalNote as EMRClinicalNote
+
         # Format for EMR
         emr_data = self.emr_formatter.format_for_docassist_emr(document)
 
-        # TODO: Integrate with actual EMR API
-        # For now, return formatted data
-        return {
-            "success": True,
-            "emr_system": emr_system,
-            "data": emr_data,
-            "message": "EMR integration pending implementation",
-        }
+        try:
+            # Initialize EMR client
+            emr_client = EMRClient(config=EMRConfig())
+
+            async with emr_client:
+                # Create clinical note in EMR
+                if emr_data.get("patient_id"):
+                    # Create EMR clinical note object
+                    clinical_note = EMRClinicalNote(
+                        patient_id=emr_data["patient_id"],
+                        note_type=emr_data.get("note_type", "progress"),
+                        note_date=emr_data.get("note_date"),
+                        subjective=emr_data.get("subjective"),
+                        objective=emr_data.get("objective"),
+                        assessment=emr_data.get("assessment"),
+                        plan=emr_data.get("plan"),
+                        full_note=emr_data.get("full_note"),
+                        author=emr_data.get("author"),
+                        signed=emr_data.get("signed", False),
+                        signed_at=emr_data.get("signed_at"),
+                    )
+
+                    # Push to EMR via API
+                    response = await emr_client._request(
+                        "POST",
+                        f"/patients/{emr_data['patient_id']}/notes",
+                        json=clinical_note.model_dump(exclude_none=True),
+                    )
+
+                    return {
+                        "success": True,
+                        "emr_system": emr_system,
+                        "data": response,
+                        "message": "Document successfully pushed to EMR",
+                    }
+                else:
+                    return {
+                        "success": False,
+                        "emr_system": emr_system,
+                        "error": "No patient_id in document",
+                        "message": "Cannot push to EMR without patient identifier",
+                    }
+
+        except Exception as e:
+            # Fallback to returning formatted data if API fails
+            return {
+                "success": False,
+                "emr_system": emr_system,
+                "data": emr_data,
+                "error": str(e),
+                "message": f"EMR API call failed: {str(e)}. Data formatted but not pushed.",
+            }
 
     # Templates
     def list_templates(self, specialty: Optional[str] = None) -> list[dict[str, Any]]:

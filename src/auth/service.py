@@ -8,12 +8,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 import secrets
+import logging
 
 from .models import User, Session, UserRole, AuthProvider, TokenPair, Organization
 from .password import hash_password, verify_password, validate_password_strength, generate_reset_token
 from .jwt_handler import JWTHandler, get_jwt_handler
 from .sso import SSOManager, SSOUserInfo, GoogleSSO, MicrosoftSSO
 from .storage import AuthStorage, get_auth_storage
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -109,7 +112,8 @@ class AuthService:
 
         self.storage.create_user(user)
 
-        # TODO: Send verification email
+        # Send verification email asynchronously
+        self._send_verification_email_async(user)
 
         return AuthResult(success=True, user=user)
 
@@ -146,7 +150,8 @@ class AuthService:
         # Check MFA
         if user.mfa_enabled:
             mfa_token = secrets.token_urlsafe(32)
-            # TODO: Store MFA token for verification
+            # Store MFA token in Redis with 5-minute TTL
+            self._store_mfa_token(mfa_token, user.id)
             return AuthResult(
                 success=True,
                 user=user,
@@ -378,7 +383,8 @@ class AuthService:
         expires = datetime.utcnow() + timedelta(hours=1)
         self.storage.create_password_reset(token, user.id, expires)
 
-        # TODO: Send email with reset link
+        # Send password reset email asynchronously
+        self._send_password_reset_email_async(user, token)
         return token
 
     def reset_password(self, token: str, new_password: str) -> AuthResult:
@@ -510,6 +516,63 @@ class AuthService:
             }
             for s in sessions
         ]
+
+    # Helper methods for email and MFA
+    def _send_verification_email_async(self, user: User) -> None:
+        """Send verification email asynchronously."""
+        try:
+            from src.notifications.email_service import get_email_service
+            import asyncio
+
+            # Generate verification token
+            token = secrets.token_urlsafe(32)
+            expires = datetime.utcnow() + timedelta(hours=24)
+
+            # Store in database (reusing password_resets table structure)
+            # In production, you might want a separate email_verifications table
+            self.storage.create_password_reset(token, user.id, expires)
+
+            # Send email
+            email_service = get_email_service()
+            asyncio.create_task(
+                email_service.send_verification_email(
+                    to=user.email,
+                    user_name=user.name,
+                    verification_token=token,
+                )
+            )
+            logger.info(f"Verification email queued for {user.email}")
+        except Exception as e:
+            logger.error(f"Failed to send verification email: {e}")
+
+    def _send_password_reset_email_async(self, user: User, reset_token: str) -> None:
+        """Send password reset email asynchronously."""
+        try:
+            from src.notifications.email_service import get_email_service
+            import asyncio
+
+            email_service = get_email_service()
+            asyncio.create_task(
+                email_service.send_password_reset_email(
+                    to=user.email,
+                    user_name=user.name,
+                    reset_token=reset_token,
+                )
+            )
+            logger.info(f"Password reset email queued for {user.email}")
+        except Exception as e:
+            logger.error(f"Failed to send password reset email: {e}")
+
+    def _store_mfa_token(self, token: str, user_id: str) -> None:
+        """Store MFA token in Redis with TTL."""
+        try:
+            from src.core.redis_client import get_mfa_token_store
+
+            mfa_store = get_mfa_token_store()
+            mfa_store.store_token(token, user_id, ttl_seconds=300)  # 5 minutes
+            logger.info(f"MFA token stored for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to store MFA token: {e}")
 
 
 # Default instance

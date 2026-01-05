@@ -854,8 +854,8 @@ class BadgeService:
             'leaderboard_rank': lambda: progress.global_rank or 99999,
             'peer_consultations': lambda: progress.total_peer_consultations,
             'cases': lambda: progress.total_cases_contributed,
-            'specialty_mastery': lambda: 0,  # TODO: Implement specialty tracking
-            'specialty_count': lambda: 0,  # TODO: Implement specialty counting
+            'specialty_mastery': lambda: self._get_specialty_query_count(user_id),
+            'specialty_count': lambda: self._count_mastered_specialties(user_id),
             'level': lambda: progress.current_level,
             'referrals': lambda: self.storage.count_referrals(user_id),
             'articles_read': lambda: self.storage.count_articles_read(user_id),
@@ -866,6 +866,65 @@ class BadgeService:
 
         getter = criteria_map.get(criteria_type)
         return getter() if getter else 0
+
+    def _get_specialty_query_count(self, user_id: str) -> int:
+        """
+        Get query count for a specific specialty.
+
+        Uses personalization storage to count queries in detected specialties.
+        For specialty mastery badges, this counts queries in the user's primary specialty.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Count of queries in primary specialty
+        """
+        try:
+            from src.personalization import PersonalizationStorage
+
+            storage = PersonalizationStorage()
+            profile = storage.get_profile(user_id)
+
+            if not profile:
+                return 0
+
+            # Get the primary specialty from profile
+            if not profile.primary_specialty:
+                return 0
+
+            # Count queries in this specialty
+            return storage.count_queries_by_specialty(user_id, profile.primary_specialty)
+
+        except Exception:
+            # If personalization not available, return 0
+            return 0
+
+    def _count_mastered_specialties(self, user_id: str) -> int:
+        """
+        Count number of specialties where user has achieved mastery.
+
+        Mastery is defined as 100+ queries in a specialty.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Count of mastered specialties
+        """
+        try:
+            from src.personalization import PersonalizationStorage
+
+            storage = PersonalizationStorage()
+            specialty_counts = storage.get_specialty_query_counts(user_id)
+
+            # Count specialties with 100+ queries
+            mastered = sum(1 for count in specialty_counts.values() if count >= 100)
+            return mastered
+
+        except Exception:
+            # If personalization not available, return 0
+            return 0
 
     def _award_badge(self, user_id: str, badge: Badge) -> UserBadge:
         """Award a badge to a user."""

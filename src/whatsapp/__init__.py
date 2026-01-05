@@ -32,6 +32,7 @@ from .media import MediaHandler
 from .sharing import AnswerSharing
 from .groups import GroupManager, WhatsAppGroup
 from .service import WhatsAppService
+from .storage import MessageStore
 
 __all__ = [
     # Client
@@ -65,4 +66,6 @@ __all__ = [
     "WhatsAppGroup",
     # Service
     "WhatsAppService",
+    # Storage
+    "MessageStore",
 ]

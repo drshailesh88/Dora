@@ -52,13 +52,16 @@ class ShowcaseBadgeRequest(BaseModel):
 
 
 # Dependency to get gamification service
-# TODO: Replace with actual storage backend
 def get_service() -> GamificationService:
-    """Get gamification service instance."""
-    # For now, return None - needs actual storage implementation
-    # This should be replaced with proper dependency injection
-    from src.core.storage import get_storage  # TODO: Implement this
-    storage = get_storage()
+    """
+    Get gamification service instance.
+
+    Uses in-memory storage for now. In production, this should be replaced
+    with a proper database backend (PostgreSQL, Redis, etc.).
+    """
+    from src.gamification.storage import GamificationStorage
+
+    storage = GamificationStorage()
     return get_gamification_service(storage)
 
 
@@ -67,7 +70,7 @@ def get_service() -> GamificationService:
 @router.get("/profile")
 async def get_profile(
     user_id: str,
-    # service: GamificationService = Depends(get_service),  # TODO: Uncomment when storage is ready
+    service: GamificationService = Depends(get_service),
 ):
     """
     Get complete gamification profile for a user.
@@ -80,26 +83,11 @@ async def get_profile(
         - Active challenges
         - Activity stats
     """
-    # TODO: Uncomment when service is ready
-    # try:
-    #     profile = service.get_user_profile(user_id)
-    #     return {"success": True, "profile": profile}
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=str(e))
-
-    # Placeholder response
-    return {
-        "success": True,
-        "profile": {
-            "user_id": user_id,
-            "level": {
-                "current_level": 1,
-                "current_level_name": "Level 1",
-                "total_xp": 0,
-            },
-            "message": "Gamification service not yet initialized",
-        }
-    }
+    try:
+        profile = service.get_user_profile(user_id)
+        return {"success": True, "profile": profile}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/dashboard")

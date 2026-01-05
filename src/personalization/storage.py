@@ -393,6 +393,51 @@ class PersonalizationStorage:
                 "average_feedback": round(avg_feedback, 2),
             }
 
+    def count_queries_by_specialty(self, user_id: str, specialty: str) -> int:
+        """
+        Count queries for a specific specialty.
+
+        Args:
+            user_id: User ID.
+            specialty: Specialty name.
+
+        Returns:
+            Count of queries in this specialty.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT COUNT(*) FROM query_history
+                WHERE user_id = ? AND detected_specialty = ?
+            """, (user_id, specialty))
+
+            count = cursor.fetchone()[0]
+            return count or 0
+
+    def get_specialty_query_counts(self, user_id: str) -> dict[str, int]:
+        """
+        Get query counts for all specialties for a user.
+
+        Args:
+            user_id: User ID.
+
+        Returns:
+            Dictionary mapping specialty name to query count.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+
+            cursor.execute("""
+                SELECT detected_specialty, COUNT(*) as count
+                FROM query_history
+                WHERE user_id = ? AND detected_specialty IS NOT NULL
+                GROUP BY detected_specialty
+            """, (user_id,))
+
+            rows = cursor.fetchall()
+            return {row[0]: row[1] for row in rows}
+
     def _row_to_query_history(self, row: sqlite3.Row) -> QueryHistory:
         """Convert database row to QueryHistory model."""
         from src.personalization.models import MedicalSpecialty, QueryCategory

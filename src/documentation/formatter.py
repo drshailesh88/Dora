@@ -429,32 +429,262 @@ class EMRFormatter:
         Returns:
             EMR-compatible dictionary
         """
-        # TODO: Map to DocAssist EMR schema
-        return document.model_dump()
+        from ..emr.models import ClinicalNote as EMRClinicalNote
+
+        # Map documentation models to EMR schema
+        if isinstance(document, SOAPNote):
+            return {
+                "patient_id": int(document.patient.id) if document.patient.id.isdigit() else None,
+                "note_type": "soap",
+                "note_date": document.date.isoformat(),
+                "subjective": self._build_subjective_text(document),
+                "objective": self._build_objective_text(document),
+                "assessment": self._build_assessment_text(document),
+                "plan": self._build_plan_text(document),
+                "full_note": TextFormatter().format_soap_note(document),
+                "author": document.provider.name,
+                "signed": document.status.value == "signed",
+                "signed_at": document.signed_at.isoformat() if document.signed_at else None,
+            }
+        elif isinstance(document, DischargeSummary):
+            return {
+                "patient_id": int(document.patient.id) if document.patient.id.isdigit() else None,
+                "note_type": "discharge",
+                "note_date": document.discharge_date.isoformat(),
+                "full_note": TextFormatter().format_discharge_summary(document),
+                "author": document.provider.name,
+                "signed": document.status.value == "signed",
+                "signed_at": document.signed_at.isoformat() if document.signed_at else None,
+            }
+        else:
+            # Generic mapping
+            return document.model_dump()
+
+    def _build_subjective_text(self, soap: SOAPNote) -> str:
+        """Build subjective section for EMR."""
+        parts = [f"CC: {soap.chief_complaint}", f"\nHPI: {soap.history_present_illness}"]
+        if soap.past_medical_history:
+            parts.append(f"\nPMH: {soap.past_medical_history}")
+        if soap.medications:
+            meds = ", ".join([f"{m.name} {m.dosage}" for m in soap.medications])
+            parts.append(f"\nMedications: {meds}")
+        if soap.allergies:
+            parts.append(f"\nAllergies: {', '.join(soap.allergies)}")
+        return "".join(parts)
+
+    def _build_objective_text(self, soap: SOAPNote) -> str:
+        """Build objective section for EMR."""
+        parts = []
+        if soap.vitals:
+            parts.append(f"Vitals: {str(soap.vitals)}")
+        if soap.general_exam:
+            parts.append(f"\nGeneral: {soap.general_exam}")
+        for system, findings in soap.system_exams.items():
+            parts.append(f"\n{system.title()}: {findings}")
+        return "".join(parts)
+
+    def _build_assessment_text(self, soap: SOAPNote) -> str:
+        """Build assessment section for EMR."""
+        diagnoses = []
+        for i, dx in enumerate(soap.diagnoses, 1):
+            if dx.icd10_code:
+                diagnoses.append(f"{i}. {dx.description} ({dx.icd10_code})")
+            else:
+                diagnoses.append(f"{i}. {dx.description}")
+        return "\n".join(diagnoses)
+
+    def _build_plan_text(self, soap: SOAPNote) -> str:
+        """Build plan section for EMR."""
+        parts = []
+        if soap.plan_medications:
+            parts.append("Medications:")
+            for med in soap.plan_medications:
+                parts.append(f"  - {med.name} {med.dosage} {med.route} {med.frequency}")
+        if soap.plan_investigations:
+            parts.append("\nInvestigations: " + ", ".join(soap.plan_investigations))
+        if soap.plan_followup:
+            parts.append(f"\nFollow-up: {soap.plan_followup}")
+        return "\n".join(parts)
 
     def format_as_hl7(self, document: Any) -> str:
-        """Format document as HL7 message.
+        """Format document as HL7 v2.x message.
 
         Args:
             document: Clinical document
 
         Returns:
-            HL7 message string
+            HL7 message string (ORU^R01 for clinical observations)
         """
-        # TODO: Implement HL7 formatting
-        raise NotImplementedError("HL7 formatting not yet implemented")
+        from datetime import datetime
+
+        if isinstance(document, SOAPNote):
+            # ORU^R01 - Unsolicited Observation Message
+            now = datetime.now().strftime("%Y%m%d%H%M%S")
+
+            # MSH - Message Header
+            msh = f"MSH|^~\\&|DORA|DocAssist|EMR|Hospital|{now}||ORU^R01|{document.id}|P|2.5"
+
+            # PID - Patient Identification
+            pid = (
+                f"PID|1||{document.patient.mrn or document.patient.id}||"
+                f"{document.patient.name}||{self._calculate_dob(document.patient.age)}|"
+                f"{document.patient.gender[0]}|||{document.patient.address or ''}||"
+                f"{document.patient.contact or ''}"
+            )
+
+            # PV1 - Patient Visit
+            pv1 = f"PV1|1|O|||||{document.provider.name}^{document.provider.qualification or ''}"
+
+            # OBR - Observation Request
+            obr = f"OBR|1||{document.id}|SOAP^SOAP Note^LN||{document.date.strftime('%Y%m%d%H%M%S')}"
+
+            # OBX - Observation Results (SOAP sections)
+            obx_segments = []
+            obx_count = 1
+
+            # Subjective
+            obx_segments.append(
+                f"OBX|{obx_count}|TX|SUBJ^Subjective^LN||{document.chief_complaint}||||||F"
+            )
+            obx_count += 1
+
+            # Objective (Vitals)
+            if document.vitals:
+                if document.vitals.bp_systolic and document.vitals.bp_diastolic:
+                    obx_segments.append(
+                        f"OBX|{obx_count}|NM|BP^Blood Pressure^LN||"
+                        f"{document.vitals.bp_systolic}/{document.vitals.bp_diastolic}|mmHg|||||F"
+                    )
+                    obx_count += 1
+                if document.vitals.heart_rate:
+                    obx_segments.append(
+                        f"OBX|{obx_count}|NM|HR^Heart Rate^LN||{document.vitals.heart_rate}|bpm|||||F"
+                    )
+                    obx_count += 1
+
+            # Assessment
+            if document.diagnoses:
+                dx_text = "; ".join([d.description for d in document.diagnoses])
+                obx_segments.append(
+                    f"OBX|{obx_count}|TX|ASSESS^Assessment^LN||{dx_text}||||||F"
+                )
+                obx_count += 1
+
+            # Combine all segments
+            return "\r".join([msh, pid, pv1, obr] + obx_segments)
+        else:
+            raise NotImplementedError(f"HL7 formatting not implemented for {type(document)}")
+
+    def _calculate_dob(self, age: int) -> str:
+        """Calculate approximate DOB from age for HL7."""
+        from datetime import datetime
+        year = datetime.now().year - age
+        return f"{year}0101"
 
     def format_as_fhir(self, document: Any) -> dict[str, Any]:
-        """Format document as FHIR resource.
+        """Format document as FHIR R4 resource.
 
         Args:
             document: Clinical document
 
         Returns:
-            FHIR resource dictionary
+            FHIR DiagnosticReport or DocumentReference resource dictionary
         """
-        # TODO: Implement FHIR formatting
-        raise NotImplementedError("FHIR formatting not yet implemented")
+        if isinstance(document, SOAPNote):
+            # FHIR DiagnosticReport resource for SOAP note
+            fhir_resource = {
+                "resourceType": "DiagnosticReport",
+                "id": document.id,
+                "status": "final" if document.status.value == "signed" else "preliminary",
+                "category": [{
+                    "coding": [{
+                        "system": "http://terminology.hl7.org/CodeSystem/v2-0074",
+                        "code": "SOAP",
+                        "display": "SOAP Note"
+                    }]
+                }],
+                "code": {
+                    "coding": [{
+                        "system": "http://loinc.org",
+                        "code": "34117-2",
+                        "display": "History and physical note"
+                    }],
+                    "text": "SOAP Clinical Note"
+                },
+                "subject": {
+                    "reference": f"Patient/{document.patient.id}",
+                    "display": document.patient.name
+                },
+                "effectiveDateTime": document.date.isoformat(),
+                "issued": document.created_at.isoformat(),
+                "performer": [{
+                    "reference": f"Practitioner/{document.provider.name}",
+                    "display": document.provider.name
+                }],
+                "conclusion": self._build_assessment_text(document),
+                "presentedForm": [{
+                    "contentType": "text/plain",
+                    "data": TextFormatter().format_soap_note(document),
+                    "title": "SOAP Note"
+                }]
+            }
+
+            # Add observations for vitals
+            if document.vitals:
+                observations = []
+                if document.vitals.bp_systolic and document.vitals.bp_diastolic:
+                    observations.append({
+                        "reference": f"Observation/bp-{document.id}",
+                        "display": f"Blood Pressure: {document.vitals.bp_systolic}/{document.vitals.bp_diastolic}"
+                    })
+                if document.vitals.heart_rate:
+                    observations.append({
+                        "reference": f"Observation/hr-{document.id}",
+                        "display": f"Heart Rate: {document.vitals.heart_rate} bpm"
+                    })
+                if observations:
+                    fhir_resource["result"] = observations
+
+            return fhir_resource
+
+        elif isinstance(document, DischargeSummary):
+            # FHIR DocumentReference for discharge summary
+            return {
+                "resourceType": "DocumentReference",
+                "id": document.id,
+                "status": "current",
+                "type": {
+                    "coding": [{
+                        "system": "http://loinc.org",
+                        "code": "18842-5",
+                        "display": "Discharge summary"
+                    }]
+                },
+                "subject": {
+                    "reference": f"Patient/{document.patient.id}",
+                    "display": document.patient.name
+                },
+                "date": document.discharge_date.isoformat(),
+                "author": [{
+                    "reference": f"Practitioner/{document.provider.name}",
+                    "display": document.provider.name
+                }],
+                "content": [{
+                    "attachment": {
+                        "contentType": "text/plain",
+                        "data": TextFormatter().format_discharge_summary(document),
+                        "title": "Discharge Summary"
+                    }
+                }],
+                "context": {
+                    "period": {
+                        "start": document.admission_date.isoformat(),
+                        "end": document.discharge_date.isoformat()
+                    }
+                }
+            }
+        else:
+            raise NotImplementedError(f"FHIR formatting not implemented for {type(document)}")
 
 
 # Convenience functions
