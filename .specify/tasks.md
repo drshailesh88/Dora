@@ -332,16 +332,16 @@
   - Write tests
   - **Status**: Settings view has voice controls
 
-- [ ] **T3.4.3** Test offline mode end-to-end
+- [X] **T3.4.3** Test offline mode end-to-end
   - Disable network and test all features
   - Verify voice works offline
   - Document limitations
   - Write airplane mode tests
-  - **Status**: PARTIAL - needs comprehensive E2E test suite
+  - **Status**: COMPLETE - `tests/e2e/test_offline_mode.py` with comprehensive tests
 
 ---
 
-## Phase 4: NotebookLM Features (Weeks 13-16) - ⚠️ 58% COMPLETE
+## Phase 4: NotebookLM Features (Weeks 13-16) - ✅ 92% COMPLETE
 
 ### Sprint 4.1: Document Upload (Week 13) - ✅ COMPLETE
 
@@ -365,7 +365,7 @@
   - Write tests
   - **Status**: Document-scoped queries working
 
-### Sprint 4.2: Audio & Learning (Week 14) - ⚠️ 33% COMPLETE
+### Sprint 4.2: Audio & Learning (Week 14) - ✅ COMPLETE
 
 - [X] **T4.2.1** Implement auto-summarization
   - Generate executive summary on ingestion
@@ -373,21 +373,21 @@
   - Write tests
   - **Status**: Summarization in ingestion pipeline
 
-- [ ] **T4.2.2** Create audio overview generation
+- [X] **T4.2.2** Create audio overview generation
   - Generate podcast-style script
   - Synthesize with Piper TTS
   - Stream audio to user
   - Write tests
-  - **Status**: PARTIAL - TTS exists but not podcast generation
+  - **Status**: COMPLETE - `src/audio/` module with podcast_generator, audio_synthesizer, audio_streaming
 
-- [ ] **T4.2.3** Implement highlight & annotate
+- [X] **T4.2.3** Implement highlight & annotate
   - Allow text highlighting
   - Save annotations
   - Display in document view
   - Write tests
-  - **Status**: NOT STARTED
+  - **Status**: COMPLETE - `src/annotations/` module with service, storage, models
 
-### Sprint 4.3: Updates & Academic Writing (Week 15) - ⚠️ 67% COMPLETE
+### Sprint 4.3: Updates & Academic Writing (Week 15) - ✅ COMPLETE
 
 - [X] **T4.3.1** Implement guideline update notifications
   - Monitor knowledge base for updates
@@ -403,21 +403,21 @@
   - Write tests
   - **Status**: `src/academic/` module (5,068 LOC)
 
-- [ ] **T4.3.3** Implement document comparison
+- [X] **T4.3.3** Implement document comparison
   - Side-by-side view
   - Highlight differences
   - Summarize changes
   - Write tests
-  - **Status**: NOT STARTED
+  - **Status**: COMPLETE - `src/comparison/` module with differ, semantic_diff, change_summarizer
 
-### Sprint 4.4: Polish & Launch Prep (Week 16) - ⚠️ 50% COMPLETE
+### Sprint 4.4: Polish & Launch Prep (Week 16) - ✅ 75% COMPLETE
 
-- [ ] **T4.4.1** Performance optimization
+- [X] **T4.4.1** Performance optimization
   - Profile query latency
   - Optimize bottlenecks
   - Implement caching
   - Benchmark results
-  - **Status**: PARTIAL - caching exists, needs profiling
+  - **Status**: COMPLETE - `src/performance/` module with profiler, metrics, Prometheus support
 
 - [X] **T4.4.2** Security audit
   - Review authentication
@@ -433,12 +433,12 @@
   - Support runbook
   - **Status**: PARTIAL - API docs exist, user guide needed
 
-- [ ] **T4.4.4** Beta launch preparation
+- [X] **T4.4.4** Beta launch preparation
   - Set up production infrastructure
   - Configure monitoring
   - Create feedback channels
   - Prepare launch materials
-  - **Status**: PARTIAL - infrastructure code exists
+  - **Status**: COMPLETE - `infrastructure/` with docker-compose.prod.yml, monitoring, nginx; `launch/` with checklists
 
 ---
 
@@ -563,11 +563,11 @@
 |-------|-------|----------|------------|
 | Phase 1: Core RAG | 17 | 16 | 94% |
 | Phase 2: EMR Integration | 14 | 14 | 100% |
-| Phase 3: Voice & Offline | 13 | 12 | 92% |
-| Phase 4: NotebookLM | 12 | 6 | 50% |
-| **TOTAL SPECIFIED** | **56** | **48** | **86%** |
+| Phase 3: Voice & Offline | 13 | 13 | 100% |
+| Phase 4: NotebookLM | 12 | 11 | 92% |
+| **TOTAL SPECIFIED** | **56** | **54** | **96%** |
 | Bonus (Unspecified) | 16 | 16 | 100% |
-| **TOTAL IMPLEMENTED** | **72** | **64** | **89%** |
+| **TOTAL IMPLEMENTED** | **72** | **70** | **97%** |
 
 ---
 
@@ -590,19 +590,13 @@ Use these for autonomous implementation of complex features:
 
 ## Remaining Work (Priority Order)
 
-1. **T1.4.5** - Ingest initial knowledge base (CRITICAL - blocking production use)
-2. **T3.4.3** - Complete offline E2E tests
-3. **T4.2.2** - Audio overview generation
-4. **T4.2.3** - Highlight & annotate
-5. **T4.3.3** - Document comparison
-6. **T4.4.1** - Performance optimization
-7. **T4.4.3** - Documentation completion
-8. **T4.4.4** - Beta launch preparation
+1. **T1.4.5** - Ingest initial knowledge base (CRITICAL - blocking production use, requires manual curation)
+2. **T4.4.3** - Documentation completion (user guide needed)
 
 ---
 
-*Tasks Version: 2.0 (Reconciled)*
+*Tasks Version: 2.1 (Updated)*
 *Last Updated: January 2026*
 *Reconciliation Date: January 2026*
 *Total Original Duration: 16 weeks*
-*Actual Progress: ~89% complete*
+*Actual Progress: ~97% complete*
